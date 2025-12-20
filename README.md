@@ -62,7 +62,8 @@ Install dependensi: npm install [cite: 2025-12-20].
 
 Jalankan server lokal: npm run dev [cite: 2025-12-13].
 -----------------------------------------------------------------------------
-👥 Tim Pengembang
+
+##👥 Tim Pengembang
 Imam Faqih Masduqi - Logic & Security [cite: 2025-09-29].
 
 Ahmad Raka Putra Pratama - Admin Interface & UI [cite: 2025-12-10].

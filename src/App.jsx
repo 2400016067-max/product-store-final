@@ -5,12 +5,12 @@ import ProductCard from "./components/public/ProductCard";
 import ProductTable from "./components/admin/ProductTable"; 
 import ProductDetail from "./pages/public/ProductDetail"; 
 import AddProductModal from "./components/admin/AddProductModal";
-import Login from "./pages/admin/Login"; // Pastikan file ini sudah kamu buat [cite: 2025-12-20]
+import Login from "./pages/admin/Login"; 
 import { useProducts } from "./hooks/useProducts"; 
-import { useAuth } from "./hooks/useAuth"; // Hook keamanan kita [cite: 2025-09-29]
+import { useAuth } from "./hooks/useAuth"; 
 
 function App() {
-  // 1. Destruktur Logic Produk
+  // 1. Mengambil Logic Produk dari Hook [cite: 2025-09-29]
   const { 
     products, 
     loading: productsLoading, 
@@ -20,10 +20,10 @@ function App() {
     updateProduct 
   } = useProducts();
 
-  // 2. Destruktur Logic Autentikasi [cite: 2025-12-20]
+  // 2. Mengambil Logic Autentikasi [cite: 2025-12-20]
   const { isAuthenticated, loading: authLoading } = useAuth();
 
-  // 3. Handler Hapus dengan konfirmasi
+  // 3. Handler Hapus dengan konfirmasi [cite: 2025-12-13]
   const handleDelete = async (id) => {
     if (window.confirm("Apakah Anda yakin ingin menghapus produk ini?")) {
       const result = await deleteProduct(id);
@@ -33,7 +33,11 @@ function App() {
     }
   };
 
-  // 4. Splash Screen saat cek sesi login [cite: 2025-09-29]
+  /**
+   * 4. SPLASH SCREEN (Sangat Penting)
+   * Mencegah 'Flickering' di mana halaman admin muncul sekilas sebelum login 
+   * saat aplikasi sedang membaca LocalStorage [cite: 2025-09-29].
+   */
   if (authLoading) {
     return (
       <div className="h-screen flex items-center justify-center bg-slate-50">
@@ -86,8 +90,10 @@ function App() {
         {/* ================= JALUR LOGIN ================= */}
         <Route path="/login" element={<Login />} />
 
-        {/* ================= JALUR ADMIN (DIPROTEKSI) ================= */}
-        {/* Logika: Jika Login (True) tampilkan AdminLayout, Jika Belum (False) tendang ke /login [cite: 2025-11-02] */}
+        {/* ================= JALUR ADMIN (DIPROTEKSI) ================= 
+            Logika Satpam: Jika isAuthenticated (True) -> Masuk AdminLayout
+            Jika False -> Tendang paksa ke halaman /login [cite: 2025-11-02, 2025-12-20]
+        */}
         <Route 
           path="/admin" 
           element={isAuthenticated ? <AdminLayout /> : <Navigate to="/login" replace />}
@@ -119,7 +125,7 @@ function App() {
           } />
         </Route>
 
-        {/* Fallback: Jika URL ngawur, arahkan ke Home */}
+        {/* Fallback: Jika URL tidak ditemukan, arahkan ke Home [cite: 2025-12-20] */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>

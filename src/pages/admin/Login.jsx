@@ -13,11 +13,23 @@ export default function Login() {
     e.preventDefault();
     setErrorMsg("");
 
+    // Memanggil logika login dari hook [cite: 2025-12-13]
     const result = await login(username, password);
     
     if (result.success) {
-      // Jika berhasil, arahkan ke dashboard admin [cite: 2025-12-20]
-      navigate("/admin");
+      /**
+       * SOLUSI KRITIS: Menggunakan window.location untuk sinkronisasi state.
+       * Ini memaksa App.jsx (Satpam) membaca ulang LocalStorage [cite: 2025-12-20].
+       */
+      const adminPath = "/product-store-final/#/admin";
+      
+      // Cek apakah sedang di localhost atau GitHub Pages
+      window.location.href = window.location.hostname === "localhost" 
+        ? "/#/admin" 
+        : adminPath;
+
+      // Paksa refresh agar state 'isAuthenticated' di App.jsx terupdate [cite: 2025-09-29]
+      window.location.reload(); 
     } else {
       setErrorMsg(result.message);
     }
@@ -32,7 +44,7 @@ export default function Login() {
         </div>
 
         {errorMsg && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 text-sm rounded-md">
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 text-sm rounded-md animate-shake">
             {errorMsg}
           </div>
         )}
@@ -43,7 +55,7 @@ export default function Login() {
             <input
               type="text"
               required
-              className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+              className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-600 outline-none transition-all"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               placeholder="Masukkan username"
@@ -55,7 +67,7 @@ export default function Login() {
             <input
               type="password"
               required
-              className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+              className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-600 outline-none transition-all"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
@@ -65,16 +77,16 @@ export default function Login() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-md transition-colors disabled:bg-slate-400"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-md transition-all active:scale-[0.98] disabled:bg-slate-400"
           >
             {loading ? "Mengecek Database..." : "Masuk Sekarang"}
           </button>
         </form>
         
-        <div className="mt-6 text-center">
+        <div className="mt-6 text-center border-t pt-4">
           <button 
             onClick={() => navigate("/")}
-            className="text-sm text-slate-400 hover:text-slate-600"
+            className="text-sm text-slate-400 hover:text-blue-600 transition-colors"
           >
             ← Kembali ke Katalog
           </button>
