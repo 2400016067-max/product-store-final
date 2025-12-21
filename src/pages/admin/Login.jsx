@@ -11,15 +11,23 @@ export default function Login() {
   const [errorMsg, setErrorMsg] = useState("");
   
   // --- STATE KEAMANAN & LOADING LOKAL ---
-  const [localLoading, setLocalLoading] = useState(false); // Gunakan ini untuk spinner tombol
+  const [localLoading, setLocalLoading] = useState(false); 
   const [failedAttempts, setFailedAttempts] = useState(0); 
   const [isLocked, setIsLocked] = useState(false);         
   const [timeLeft, setTimeLeft] = useState(0);             
 
-  const { login } = useAuth(); // Kita tidak lagi mengambil 'loading' global dari sini
+  const { login, isAuthenticated } = useAuth(); // Ambil isAuthenticated untuk "Watchdog"
   const navigate = useNavigate();
 
-  // --- LOGIKA TIMER (COUNTDOWN) ---
+  // --- 1. WATCHDOG REDIRECT (Solusi Bug Refresh) ---
+  // Jika status auth berubah jadi true, langsung pindahkan ke admin secara otomatis
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate("/admin", { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
+
+  // --- 2. LOGIKA TIMER (COUNTDOWN) ---
   useEffect(() => {
     let timer;
     if (isLocked && timeLeft > 0) {
@@ -34,11 +42,10 @@ export default function Login() {
     return () => clearInterval(timer);
   }, [isLocked, timeLeft]);
 
-  // --- FUNGSI PENANGGULANGAN GAGAL LOGIN ---
+  // --- 3. FUNGSI PENANGGULANGAN GAGAL LOGIN ---
   const handleFailedAttempt = (apiMessage) => {
     setFailedAttempts((prev) => {
       const nextValue = prev + 1;
-      
       if (nextValue >= 3) {
         setIsLocked(true);
         setTimeLeft(30);
@@ -46,7 +53,6 @@ export default function Login() {
       } else {
         setErrorMsg(apiMessage || `Username/Password salah! (Sisa percobaan: ${3 - nextValue})`);
       }
-      
       return nextValue;
     });
   };
@@ -55,16 +61,18 @@ export default function Login() {
     e.preventDefault();
     if (isLocked || localLoading) return;
     setErrorMsg("");
-    setLocalLoading(true); // Aktifkan loading di tingkat komponen saja
+    setLocalLoading(true);
 
     try {
       const result = await login(username, password);
       
       if (result && result.success) {
+        // Kita tidak panggil navigate() di sini.
+        // Biarkan useEffect "Watchdog" di atas yang menangani perpindahan halaman
+        // agar data user benar-benar sudah siap sebelum pindah.
         setFailedAttempts(0);
-        navigate("/admin", { replace: true });
       } else {
-        setLocalLoading(false); // Matikan loading jika gagal
+        setLocalLoading(false); 
         handleFailedAttempt(result?.message);
       }
     } catch (err) {
