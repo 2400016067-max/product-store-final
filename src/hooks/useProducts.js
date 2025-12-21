@@ -24,20 +24,22 @@ export const useProducts = () => {
     }
   }, [API_URL]);
 
-  // 2. GET BY ID: Mengambil satu data spesifik untuk Halaman Detail [cite: 2025-09-29]
-  const getProductById = async (id) => {
+  // 2. GET BY ID: Dioptimalkan dengan useCallback agar referensi fungsi stabil [cite: 2025-12-21]
+  const getProductById = useCallback(async (id) => {
+    if (!id) return null;
     try {
-      setLoading(true);
+      // Kita tetap gunakan loading lokal jika dibutuhkan di komponen
+      setLoading(true); 
       const response = await fetch(`${API_URL}/${id}`);
       if (!response.ok) throw new Error("Produk tidak ditemukan.");
       return await response.json();
     } catch (err) {
-      setError(err.message);
+      console.error("Hook Error (Detail):", err.message);
       return null;
     } finally {
       setLoading(false);
     }
-  };
+  }, [API_URL]);
 
   // 3. DELETE: Menghapus produk dari database
   const deleteProduct = async (id) => {
@@ -66,7 +68,6 @@ export const useProducts = () => {
       if (!response.ok) throw new Error("Gagal menambah produk.");
       
       const addedProduct = await response.json();
-      // Optimistic Update: Tambahkan ke list tanpa reload [cite: 2025-09-29]
       setProducts((prev) => [...prev, addedProduct]);
       return { success: true };
     } catch (err) {
@@ -74,7 +75,7 @@ export const useProducts = () => {
     }
   };
 
-  // 5. PUT: Memperbarui data produk yang sudah ada (Fitur Edit)
+  // 5. PUT: Memperbarui data produk (Fitur Edit)
   const updateProduct = async (id, updatedData) => {
     try {
       const response = await fetch(`${API_URL}/${id}`, {
@@ -85,7 +86,6 @@ export const useProducts = () => {
       if (!response.ok) throw new Error("Gagal memperbarui produk.");
       
       const updatedProduct = await response.json();
-      // Logic Update State: Cari ID yang cocok, lalu ganti isinya [cite: 2025-09-29]
       setProducts((prev) => 
         prev.map((p) => (p.id === id ? updatedProduct : p))
       );
@@ -106,7 +106,7 @@ export const useProducts = () => {
     refetch: fetchProducts, 
     deleteProduct, 
     addProduct, 
-    updateProduct, // Mengekspor fungsi update untuk Anggota B
+    updateProduct, 
     getProductById 
   };
 };

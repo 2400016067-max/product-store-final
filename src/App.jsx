@@ -1,7 +1,6 @@
 import { HashRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import PublicLayout from "./components/public/PublicLayout";
 import AdminLayout from "./components/admin/AdminLayout";
-import ProductCard from "./components/public/ProductCard";
 import ProductTable from "./components/admin/ProductTable"; 
 import ProductDetail from "./pages/public/ProductDetail"; 
 import AddProductModal from "./components/admin/AddProductModal";
@@ -9,8 +8,11 @@ import Login from "./pages/admin/Login";
 import { useProducts } from "./hooks/useProducts"; 
 import { useAuth } from "./hooks/useAuth"; 
 
+// Halaman Home (Katalog)
+import ProductCard from "./components/public/ProductCard";
+
 function App() {
-  // 1. Mengambil Logic Produk dari Hook [cite: 2025-09-29]
+  // 1. Logic Produk (Integrasi API)
   const { 
     products, 
     loading: productsLoading, 
@@ -20,10 +22,10 @@ function App() {
     updateProduct 
   } = useProducts();
 
-  // 2. Mengambil Logic Autentikasi [cite: 2025-12-20]
+  // 2. Logic Autentikasi
   const { isAuthenticated, loading: authLoading } = useAuth();
 
-  // 3. Handler Hapus dengan konfirmasi [cite: 2025-12-13]
+  // 3. Handler Hapus (CRUD: Delete)
   const handleDelete = async (id) => {
     if (window.confirm("Apakah Anda yakin ingin menghapus produk ini?")) {
       const result = await deleteProduct(id);
@@ -34,9 +36,8 @@ function App() {
   };
 
   /**
-   * 4. SPLASH SCREEN (Sangat Penting)
-   * Mencegah 'Flickering' di mana halaman admin muncul sekilas sebelum login 
-   * saat aplikasi sedang membaca LocalStorage [cite: 2025-09-29].
+   * 4. SPLASH SCREEN
+   * Menunggu verifikasi sesi dari LocalStorage [cite: 2025-09-29, 12-20].
    */
   if (authLoading) {
     return (
@@ -54,6 +55,7 @@ function App() {
       <Routes>
         {/* ================= JALUR PUBLIC (Bebas Akses) ================= */}
         <Route element={<PublicLayout />}>
+          {/* Katalog List */}
           <Route path="/" element={
             <div className="space-y-10">
               <div className="text-center">
@@ -84,16 +86,15 @@ function App() {
               )}
             </div>
           } />
+
+          {/* RUTE DINAMIS DETAIL PRODUK (Kunci Fitur WA) */}
           <Route path="/detail/:id" element={<ProductDetail />} />
         </Route>
 
         {/* ================= JALUR LOGIN ================= */}
         <Route path="/login" element={<Login />} />
 
-        {/* ================= JALUR ADMIN (DIPROTEKSI) ================= 
-            Logika Satpam: Jika isAuthenticated (True) -> Masuk AdminLayout
-            Jika False -> Tendang paksa ke halaman /login [cite: 2025-11-02, 2025-12-20]
-        */}
+        {/* ================= JALUR ADMIN (DIPROTEKSI) ================= */}
         <Route 
           path="/admin" 
           element={isAuthenticated ? <AdminLayout /> : <Navigate to="/login" replace />}
@@ -125,7 +126,7 @@ function App() {
           } />
         </Route>
 
-        {/* Fallback: Jika URL tidak ditemukan, arahkan ke Home [cite: 2025-12-20] */}
+        {/* Fallback ke Home */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>

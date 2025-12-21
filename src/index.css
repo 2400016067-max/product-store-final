@@ -62,16 +62,55 @@
   .dark {
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
-    /* ... Tambahkan variabel dark mode lainnya di sini [cite: 2025-11-02] */
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
   }
 }
 
-/* 3. Aturan Dasar Global [cite: 2025-09-29] */
+/* 3. Aturan Dasar & Normalisasi (KUNCI PERBAIKAN TOMBOL) [cite: 2025-12-21] */
 @layer base {
   * {
     @apply border-border;
   }
+
+  /* Reset standard agar koordinat klik akurat [cite: 2025-12-21] */
+  html, body, #root {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    width: 100%;
+    overflow-x: hidden;
+  }
+
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  /* Memaksa elemen interaktif memiliki kursor jari [cite: 2025-09-29] */
+  a, button, [role="button"] {
+    cursor: pointer !important;
+    pointer-events: auto !important;
+  }
+
+  /* Mencegah input/button yang disabled menghalangi interaksi lain */
+  :disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
   }
 }
