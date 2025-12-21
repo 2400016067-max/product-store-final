@@ -1,26 +1,28 @@
 import { Outlet, useNavigate, Link } from "react-router-dom";
-import { useAuth } from "../../hooks/useAuth"; // Wajib diimport untuk fungsi logout asli [cite: 2025-12-20]
+// 1. PERBAIKAN IMPORT: Arahkan ke folder contexts, bukan hooks
+import { useAuth } from "../../contexts/AuthContext"; 
 
 export default function AdminLayout() {
   const navigate = useNavigate();
-  const { logout, user } = useAuth(); // Ambil fungsi logout dan data user dari hook [cite: 2025-12-20]
+  // 2. Ambil data dari Global Context
+  const { logout, user } = useAuth(); 
 
-  // Handler Logout dengan integrasi Keamanan & UX [cite: 2025-09-29]
   const handleLogout = () => {
     const isConfirm = window.confirm("Apakah Anda yakin ingin keluar dari Panel Admin?");
     
     if (isConfirm) {
-      // 1. Jalankan fungsi logout (Hapus localStorage & Reset State) [cite: 2025-12-13]
+      // 3. Eksekusi logout dari context
       logout(); 
-      // 2. Redirect dilakukan otomatis oleh fungsi logout di hook, 
-      // tapi kita tambahkan navigasi manual sebagai cadangan [cite: 2025-12-20]
-      navigate("/"); 
+      
+      // Jika di AuthContext.jsx kamu TIDAK pakai window.location.href, 
+      // maka navigate ini sangat penting:
+      navigate("/login"); 
     }
   };
 
   return (
     <div className="flex min-h-screen bg-slate-50">
-      {/* Sidebar - Area Navigasi Admin [cite: 2025-09-29] */}
+      {/* Sidebar */}
       <aside className="w-64 border-r bg-white p-6 hidden md:flex flex-col">
         <div className="mb-8">
           <h2 className="font-bold text-xl tracking-tight text-blue-600">Admin Panel</h2>
@@ -42,15 +44,21 @@ export default function AdminLayout() {
           </Link>
         </nav>
 
-        {/* Info User yang Sedang Login [cite: 2025-12-13] */}
+        {/* Info User - Mengambil data asli dari Context */}
         <div className="pt-6 border-t border-slate-100">
           <div className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-600">
-              {user?.name?.charAt(0) || "A"}
+            <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-xs font-bold text-blue-600">
+              {/* Menampilkan inisial nama user secara dinamis */}
+              {user?.username?.charAt(0).toUpperCase() || "A"}
             </div>
             <div className="flex-1 overflow-hidden">
-              <p className="text-sm font-bold text-slate-700 truncate">{user?.name || "Administrator"}</p>
-              <p className="text-[10px] text-green-500 font-bold uppercase">Online</p>
+              <p className="text-sm font-bold text-slate-700 truncate">
+                {user?.username || "Admin"}
+              </p>
+              <p className="text-[10px] text-green-500 font-bold uppercase flex items-center gap-1">
+                <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                Online
+              </p>
             </div>
           </div>
         </div>
@@ -58,14 +66,12 @@ export default function AdminLayout() {
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col">
-        {/* Header - Area Kontrol Atas [cite: 2025-09-29] */}
         <header className="h-16 border-b bg-white flex items-center px-6 justify-between shadow-sm">
           <div className="flex items-center gap-2">
             <span className="h-2 w-2 rounded-full bg-blue-500"></span>
             <span className="font-medium text-slate-700 text-sm">Overview Manajemen Produk</span>
           </div>
           
-          {/* Tombol Logout Aktif [cite: 2025-09-29] */}
           <button 
             onClick={handleLogout}
             className="text-sm bg-red-50 text-red-600 px-4 py-1.5 rounded-md font-bold hover:bg-red-500 hover:text-white transition-all border border-red-100 active:scale-95 shadow-sm"
@@ -74,7 +80,6 @@ export default function AdminLayout() {
           </button>
         </header>
 
-        {/* Content - Tempat ProdukTable Muncul [cite: 2025-09-29] */}
         <main className="p-8">
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
             <Outlet /> 
