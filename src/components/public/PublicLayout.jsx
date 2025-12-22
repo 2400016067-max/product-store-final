@@ -1,4 +1,6 @@
-import { Outlet, Link } from "react-router-dom"; // Tambahkan Link untuk navigasi internal [cite: 2025-09-29]
+import { Outlet, Link } from "react-router-dom";
+// 1. IMPORT MODAL KERANJANG [cite: 2025-12-22]
+import CartModal from "./CartModal"; 
 
 export default function PublicLayout() {
   return (
@@ -9,11 +11,16 @@ export default function PublicLayout() {
           <Link to="/" className="font-extrabold text-xl tracking-tighter text-blue-600">
             ProductStore
           </Link>
+          
           <nav className="flex items-center space-x-6">
             <Link to="/" className="text-sm font-medium hover:text-blue-600 transition-colors">
               Katalog
             </Link>
-            {/* Kamu bisa meminta Anggota A menambah link menu lain di sini nanti */}
+            
+            {/* 2. INTEGRASI KERANJANG DI NAVBAR [cite: 2025-12-22] */}
+            <div className="border-l pl-6">
+               <CartModal />
+            </div>
           </nav>
         </div>
       </header>
