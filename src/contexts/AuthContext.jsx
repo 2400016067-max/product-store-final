@@ -4,13 +4,11 @@ const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  
-  // loading ini HANYA untuk cek sesi awal (Splash Screen di App.jsx)
   const [loading, setLoading] = useState(true); 
 
   const AUTH_API = "https://694615d7ed253f51719d04d2.mockapi.io/users";
 
-  // 1. Cek Sesi (Hanya jalan sekali saat Web dibuka/refresh)
+  // 1. Cek Sesi (Mengenali Imam, Raka, atau Dadan saat refresh)
   useEffect(() => {
     const checkSession = async () => {
       try {
@@ -22,20 +20,15 @@ export const AuthProvider = ({ children }) => {
         console.error("Session Error:", error);
         sessionStorage.removeItem("admin_user");
       } finally {
-        // Setelah ini selesai, App.jsx akan berhenti menampilkan Splash Screen
         setLoading(false); 
       }
     };
-    
     checkSession();
   }, []);
 
-  // 2. Fungsi Login (LOADING GLOBAL DIHAPUS DARI SINI)
+  // 2. Fungsi Login (Menangkap Otoritas/Role)
   const login = async (username, password) => {
     try {
-      // PENTING: Jangan panggil setLoading(true) di sini!
-      // Agar App.jsx tidak menampilkan Splash Screen di tengah proses login.
-      
       const response = await fetch(AUTH_API);
       if (!response.ok) throw new Error("Gagal fetch data");
       
@@ -45,16 +38,24 @@ export const AuthProvider = ({ children }) => {
       );
 
       if (foundUser) {
-        setUser(foundUser); 
-        sessionStorage.setItem("admin_user", JSON.stringify(foundUser));
+        // --- UPGRADE: Mapping Data secara Eksplisit ---
+        // Kita hanya mengambil data yang diperlukan termasuk 'role'
+        const userData = { 
+          id: foundUser.id, 
+          username: foundUser.username, 
+          name: foundUser.name,
+          role: foundUser.role // "admin", "staff", atau "viewer"
+        };
+
+        setUser(userData); 
+        sessionStorage.setItem("admin_user", JSON.stringify(userData));
         return { success: true };
       } else {
-        return { success: false, message: "Username/Password salah!" };
+        return { success: false, message: "Username atau Password salah!" };
       }
     } catch (error) {
-      return { success: false, message: "Server Error: Koneksi gagal" };
+      return { success: false, message: "Masalah koneksi ke server." };
     }
-    // PENTING: Jangan panggil setLoading(false) di sini!
   };
 
   const logout = () => {
@@ -66,8 +67,12 @@ export const AuthProvider = ({ children }) => {
     user,
     login,
     logout,
-    loading, // Ini tetap ada untuk kebutuhan Splash Screen di App.jsx
-    isAuthenticated: !!user
+    loading,
+    isAuthenticated: !!user,
+    // Helper tambahan: mengecek apakah user punya role tertentu
+    isAdmin: user?.role === "admin",
+    isStaff: user?.role === "staff",
+    isViewer: user?.role === "viewer"
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

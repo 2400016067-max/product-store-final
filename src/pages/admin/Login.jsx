@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext"; 
-import { Loader2, Lock, AlertTriangle, ArrowLeft } from "lucide-react"; 
+import { Loader2, Lock, AlertTriangle, ArrowLeft, CheckCircle2 } from "lucide-react"; 
 import { Button } from "@/components/ui/button"; 
 import { Input } from "@/components/ui/input";
 
@@ -9,25 +9,31 @@ export default function Login() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
+  const [isSuccess, setIsSuccess] = useState(false); // State untuk feedback sukses
   
-  // --- STATE KEAMANAN & LOADING LOKAL ---
   const [localLoading, setLocalLoading] = useState(false); 
   const [failedAttempts, setFailedAttempts] = useState(0); 
   const [isLocked, setIsLocked] = useState(false);         
   const [timeLeft, setTimeLeft] = useState(0);             
 
-  const { login, isAuthenticated } = useAuth(); // Ambil isAuthenticated untuk "Watchdog"
+  const { login, isAuthenticated, user } = useAuth(); 
   const navigate = useNavigate();
 
-  // --- 1. WATCHDOG REDIRECT (Solusi Bug Refresh) ---
-  // Jika status auth berubah jadi true, langsung pindahkan ke admin secara otomatis
+  // --- 1. WATCHDOG REDIRECT (Sadar Role) ---
   useEffect(() => {
-    if (isAuthenticated) {
-      navigate("/admin", { replace: true });
+    if (isAuthenticated && user) {
+      // Logika Cerdas: Cek siapa yang login
+      if (user.role === "viewer") {
+        // Jika Dadan yang login, kirim ke halaman utama (Katalog Public)
+        navigate("/", { replace: true });
+      } else {
+        // Jika Imam atau Raka, baru kirim ke Dashboard Admin
+        navigate("/admin", { replace: true });
+      }
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, user, navigate]);
 
-  // --- 2. LOGIKA TIMER (COUNTDOWN) ---
+  // --- 2. LOGIKA TIMER BRUTE FORCE ---
   useEffect(() => {
     let timer;
     if (isLocked && timeLeft > 0) {
@@ -49,9 +55,9 @@ export default function Login() {
       if (nextValue >= 3) {
         setIsLocked(true);
         setTimeLeft(30);
-        setErrorMsg("Terlalu banyak percobaan gagal. Akses dibekukan 30 detik.");
+        setErrorMsg("Akses dibekukan 30 detik karena terlalu banyak percobaan.");
       } else {
-        setErrorMsg(apiMessage || `Username/Password salah! (Sisa percobaan: ${3 - nextValue})`);
+        setErrorMsg(apiMessage || `Username/Password salah! (Sisa: ${3 - nextValue})`);
       }
       return nextValue;
     });
@@ -59,7 +65,8 @@ export default function Login() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (isLocked || localLoading) return;
+    if (isLocked || localLoading || isSuccess) return;
+    
     setErrorMsg("");
     setLocalLoading(true);
 
@@ -67,96 +74,110 @@ export default function Login() {
       const result = await login(username, password);
       
       if (result && result.success) {
-        // Kita tidak panggil navigate() di sini.
-        // Biarkan useEffect "Watchdog" di atas yang menangani perpindahan halaman
-        // agar data user benar-benar sudah siap sebelum pindah.
         setFailedAttempts(0);
+        setIsSuccess(true); // Tampilkan status sukses sebelum pindah halaman
       } else {
         setLocalLoading(false); 
         handleFailedAttempt(result?.message);
       }
     } catch (err) {
       setLocalLoading(false);
-      setErrorMsg("Terjadi kesalahan koneksi server.");
+      setErrorMsg("Koneksi gagal. Pastikan server MockAPI aktif.");
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-100 px-4 font-sans">
-      <div className="max-w-md w-full bg-white p-8 rounded-2xl shadow-xl border border-slate-200">
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4 font-sans">
+      <div className="max-w-md w-full bg-white p-10 rounded-[2rem] shadow-2xl shadow-slate-200 border border-slate-100 relative overflow-hidden">
         
+        {/* Dekorasi Aksen Role */}
+        <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-500 to-indigo-600"></div>
+
         {/* ICON & HEADER */}
-        <div className="text-center mb-8">
-          <div className={`inline-flex items-center justify-center w-14 h-14 rounded-full mb-4 transition-all duration-300 ${isLocked ? 'bg-red-100 text-red-600 animate-pulse' : 'bg-slate-900 text-white'}`}>
-            {isLocked ? <AlertTriangle size={28} /> : <Lock size={24} />}
+        <div className="text-center mb-10">
+          <div className={`inline-flex items-center justify-center w-20 h-20 rounded-3xl mb-6 transition-all duration-500 shadow-lg ${
+            isSuccess ? 'bg-green-500 text-white rotate-[360deg]' : 
+            isLocked ? 'bg-red-100 text-red-600 animate-bounce' : 'bg-slate-900 text-white'
+          }`}>
+            {isSuccess ? <CheckCircle2 size={32} /> : isLocked ? <AlertTriangle size={32} /> : <Lock size={32} />}
           </div>
-          <h1 className="text-2xl font-bold text-slate-900">Admin Panel</h1>
-          <p className="text-slate-500 text-sm mt-2">
-            {isLocked ? "AKSES TERKUNCI" : "Silakan masuk untuk mengelola sistem"}
+          <h1 className="text-3xl font-black text-slate-900 tracking-tight">
+            {isSuccess ? "Berhasil Masuk!" : "Login Admin"}
+          </h1>
+          <p className="text-slate-400 text-sm mt-2 font-medium">
+            {isSuccess ? "Menyiapkan dashboard anda..." : "Gunakan akun Imam, Raka, atau Dadan."}
           </p>
         </div>
 
         {/* NOTIFIKASI ERROR */}
         {errorMsg && (
-          <div className={`mb-6 p-3 border text-sm font-medium rounded-lg flex items-center gap-3 animate-in fade-in zoom-in duration-300 ${isLocked ? 'bg-red-50 border-red-200 text-red-700' : 'bg-amber-50 border-amber-200 text-amber-700'}`}>
+          <div className={`mb-8 p-4 border text-xs font-bold rounded-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-2 ${
+            isLocked ? 'bg-red-50 border-red-100 text-red-600' : 'bg-amber-50 border-amber-100 text-amber-700'
+          }`}>
             <AlertTriangle size={18} className="shrink-0" />
-            <p>{errorMsg}</p>
+            <p className="leading-relaxed">{errorMsg}</p>
           </div>
         )}
 
         {/* FORM LOGIN */}
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
-            <label className="text-sm font-semibold text-slate-700 ml-1">Username</label>
+            <label className="text-[11px] uppercase tracking-widest font-black text-slate-400 ml-1">Username</label>
             <Input
               type="text"
               required
-              disabled={isLocked || localLoading} 
+              disabled={isLocked || localLoading || isSuccess} 
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="Username admin"
-              className="h-11 bg-slate-50 disabled:opacity-50"
+              placeholder="Ex: Imam"
+              className="h-14 bg-slate-50 border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 transition-all text-base px-5"
             />
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-semibold text-slate-700 ml-1">Password</label>
+            <label className="text-[11px] uppercase tracking-widest font-black text-slate-400 ml-1">Password</label>
             <Input
               type="password"
               required
-              disabled={isLocked || localLoading} 
+              disabled={isLocked || localLoading || isSuccess} 
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              className="h-11 bg-slate-50 disabled:opacity-50"
+              className="h-14 bg-slate-50 border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 transition-all text-base px-5"
             />
           </div>
 
           <Button
             type="submit"
-            disabled={localLoading || isLocked}
-            className={`w-full font-bold py-6 h-12 text-base transition-all active:scale-95 ${isLocked ? 'bg-red-600 hover:bg-red-700' : 'bg-slate-900 hover:bg-slate-800'}`}
+            disabled={localLoading || isLocked || isSuccess}
+            className={`w-full font-black py-7 rounded-2xl text-sm tracking-widest transition-all active:scale-95 shadow-xl ${
+              isSuccess ? 'bg-green-500 hover:bg-green-600 shadow-green-100' :
+              isLocked ? 'bg-red-600 hover:bg-red-700 shadow-red-100' : 
+              'bg-slate-900 hover:bg-slate-800 shadow-slate-200'
+            }`}
           >
             {localLoading ? (
               <span className="flex items-center gap-2">
-                <Loader2 className="animate-spin" size={20} /> Memproses...
+                <Loader2 className="animate-spin" size={20} /> MENYINKRONKAN...
               </span>
             ) : isLocked ? (
-              `Tunggu ${timeLeft} Detik...` 
+              `BEKU: ${timeLeft} DETIK` 
+            ) : isSuccess ? (
+              "MENGALIHKAN..."
             ) : (
-              "MASUK KE DASHBOARD"
+              "MASUK SEKARANG"
             )}
           </Button>
         </form>
         
-        <div className="mt-8 text-center pt-6 border-t border-slate-100">
+        <div className="mt-10 text-center">
           <button 
             type="button"
             onClick={() => navigate("/")}
-            className="text-sm font-semibold text-slate-400 hover:text-blue-600 transition-colors flex items-center justify-center gap-2 w-full group"
+            className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 hover:text-blue-600 transition-all flex items-center justify-center gap-2 w-full group"
           >
-            <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
-            Kembali ke Beranda
+            <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform" />
+            Kembali ke Toko
           </button>
         </div>
       </div>

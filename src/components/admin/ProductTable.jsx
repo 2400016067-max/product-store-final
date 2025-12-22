@@ -1,83 +1,116 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge"; // Pastikan sudah install badge: npx shadcn@latest add badge
-import { CheckCircle2, XCircle, Trash2 } from "lucide-react"; // Import Ikon
+import { Badge } from "@/components/ui/badge"; 
+import { CheckCircle2, XCircle, Trash2, ShieldAlert, PencilLine } from "lucide-react"; 
 import EditProductModal from "./EditProductModal"; 
+import { useAuth } from "../../contexts/AuthContext";
 
 export default function ProductTable({ products, onDelete, onUpdate }) {
+  const { user } = useAuth();
+
+  // Abstraksi Logika Otoritas (Clean Code)
+  const isAdmin = user?.role === "admin";
+  const isStaff = user?.role === "staff";
+  const canAction = isAdmin || isStaff;
+
   return (
-    <div className="rounded-md border bg-white shadow-sm overflow-hidden">
+    <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
       <Table>
-        <TableHeader className="bg-slate-50">
-          <TableRow>
-            <TableHead className="w-[250px]">Nama Produk</TableHead>
-            <TableHead>Kategori</TableHead>
-            <TableHead>Harga</TableHead>
-            <TableHead className="text-center">Status Stok</TableHead> {/* Kolom Baru */}
-            <TableHead className="text-right">Aksi</TableHead>
+        <TableHeader className="bg-slate-50/80 backdrop-blur-sm">
+          <TableRow className="hover:bg-transparent">
+            <TableHead className="w-[300px] font-bold text-slate-600">Produk</TableHead>
+            <TableHead className="font-bold text-slate-600">Kategori</TableHead>
+            <TableHead className="font-bold text-slate-600">Harga</TableHead>
+            <TableHead className="text-center font-bold text-slate-600">Stok</TableHead>
+            
+            {/* Header dinamis berdasarkan otoritas */}
+            {canAction && (
+              <TableHead className="text-right font-bold text-slate-600 px-6">Kontrol</TableHead>
+            )}
           </TableRow>
         </TableHeader>
         <TableBody>
           {products.length === 0 ? (
             <TableRow>
-              {/* colSpan jadi 5 karena kolom bertambah */}
-              <TableCell colSpan={5} className="text-center py-12 text-muted-foreground italic">
-                Belum ada data produk di database MockAPI. [cite: 2025-12-13]
+              <TableCell colSpan={5} className="text-center py-20">
+                <div className="flex flex-col items-center gap-2 text-slate-400">
+                  <div className="p-4 bg-slate-50 rounded-full">
+                    <ShieldAlert size={40} strokeWidth={1.5} />
+                  </div>
+                  <p className="text-sm font-medium italic">Database MockAPI kosong.</p>
+                </div>
               </TableCell>
             </TableRow>
           ) : (
             products.map((product) => (
-              <TableRow key={product.id} className="hover:bg-slate-50/50 transition-colors">
-                {/* 1. Nama Produk */}
-                <TableCell className="font-medium">
+              <TableRow key={product.id} className="group transition-colors hover:bg-blue-50/30">
+                
+                {/* 1. Nama Produk dengan Badge ID */}
+                <TableCell>
                   <div className="flex flex-col">
-                    <span className="text-slate-900">{product.name}</span>
+                    <span className="font-bold text-slate-800">{product.name}</span>
+                    <span className="text-[10px] text-slate-400 font-mono">ID: {product.id}</span>
                   </div>
                 </TableCell>
 
-                {/* 2. Kategori */}
+                {/* 2. Kategori dengan Styling Lebih Soft */}
                 <TableCell>
-                  <span className="px-2.5 py-1 bg-slate-100 rounded-md text-xs font-bold text-slate-600 border border-slate-200">
+                  <span className="px-3 py-1 bg-white border border-slate-200 rounded-full text-[11px] font-black text-slate-500 uppercase tracking-tight">
                     {product.category}
                   </span>
                 </TableCell>
 
                 {/* 3. Harga */}
-                <TableCell className="font-semibold text-slate-700">
+                <TableCell className="font-bold text-slate-700">
                   Rp {product.price?.toLocaleString("id-ID")}
                 </TableCell>
 
-                {/* 4. STATUS STOK (Fitur Baru) [cite: 2025-09-29] */}
+                {/* 4. Status Stok */}
                 <TableCell className="text-center">
                   {product.isAvailable ? (
-                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 gap-1 pr-3">
-                      <CheckCircle2 size={14} /> Tersedia
+                    <Badge className="bg-emerald-50 text-emerald-700 border-emerald-100 hover:bg-emerald-50 px-3 py-1 rounded-lg">
+                      <CheckCircle2 size={12} className="mr-1" /> Ready
                     </Badge>
                   ) : (
-                    <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 gap-1 pr-3">
-                      <XCircle size={14} /> Habis
+                    <Badge className="bg-rose-50 text-rose-700 border-rose-100 hover:bg-rose-50 px-3 py-1 rounded-lg">
+                      <XCircle size={12} className="mr-1" /> Sold Out
                     </Badge>
                   )}
                 </TableCell>
 
-                {/* 5. Aksi */}
-                <TableCell className="text-right space-x-2">
-                  <div className="flex justify-end items-center gap-2">
-                    {/* Tombol Edit */}
-                    <EditProductModal product={product} onUpdate={onUpdate} />
-                    
-                    {/* Tombol Hapus */}
-                    <Button 
-                      variant="destructive" 
-                      size="icon"
-                      className="h-8 w-8 rounded-md"
-                      onClick={() => onDelete(product.id)}
-                      title="Hapus Produk"
-                    >
-                      <Trash2 size={16} />
-                    </Button>
-                  </div>
-                </TableCell>
+                {/* 5. Kolom Aksi (RBAC Filter) */}
+                {canAction && (
+                  <TableCell className="text-right px-6">
+                    <div className="flex justify-end items-center gap-3">
+                      
+                      {/* Otoritas Edit: Imam & Raka bisa */}
+                      <div className="transition-transform active:scale-90">
+                        <EditProductModal product={product} onUpdate={onUpdate} />
+                      </div>
+                      
+                      {/* Otoritas Hapus: Hanya Imam */}
+                      {isAdmin ? (
+                        <Button 
+                          variant="destructive" 
+                          size="icon"
+                          className="h-9 w-9 rounded-xl shadow-lg shadow-red-100 transition-all hover:rotate-6"
+                          onClick={() => onDelete(product.id)}
+                          title="Hapus Produk Permanen"
+                        >
+                          <Trash2 size={16} />
+                        </Button>
+                      ) : (
+                        /* Visual Feedback untuk Raka (Staff) */
+                        <div 
+                          className="h-9 w-9 flex items-center justify-center rounded-xl bg-slate-100 text-slate-400 border border-dashed border-slate-200 cursor-not-allowed" 
+                          title="Otoritas Admin diperlukan untuk menghapus"
+                        >
+                          <ShieldAlert size={16} />
+                        </div>
+                      )}
+                    </div>
+                  </TableCell>
+                )}
               </TableRow>
             ))
           )}

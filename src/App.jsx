@@ -7,6 +7,9 @@ import AddProductModal from "./components/admin/AddProductModal";
 import Login from "./pages/admin/Login"; 
 import ProductCard from "./components/public/ProductCard";
 
+// IMPORT BARU: Halaman Manajemen User
+import UserManagement from "./pages/admin/UserManagement"; 
+
 // 1. IMPORT PROTECTED ROUTE (Satpam)
 import ProtectedRoute from "./components/ProtectedRoute"; 
 
@@ -15,7 +18,6 @@ import { useProducts } from "./hooks/useProducts";
 import { useAuth } from "./contexts/AuthContext"; 
 
 function App() {
-  // Ambil data produk
   const { 
     products, 
     loading: productsLoading, 
@@ -25,28 +27,27 @@ function App() {
     updateProduct 
   } = useProducts();
 
-  // Ambil data autentikasi dari Global Context
-  const { isAuthenticated, loading: authLoading } = useAuth();
+  const { user, isAuthenticated, loading: authLoading } = useAuth();
 
   const handleDelete = async (id) => {
+    if (user?.role !== "admin") {
+      alert("Maaf, hanya Admin (Imam) yang punya otoritas menghapus data.");
+      return;
+    }
+
     if (window.confirm("Apakah Anda yakin ingin menghapus produk ini?")) {
       const result = await deleteProduct(id);
       if (!result.success) alert("Gagal menghapus: " + result.message);
     }
   };
 
-  /**
-   * 2. SPLASH SCREEN (PENYELAMAT BUG)
-   * Efek ini HANYA muncul saat pertama kali website dibuka atau di-refresh total.
-   * Saat proses login berlangsung, authLoading TIDAK berubah jadi true (berkat perbaikan AuthContext tadi),
-   * sehingga komponen Login tidak akan dicopot dari layar.
-   */
+  // SPLASH SCREEN
   if (authLoading) {
     return (
       <div className="h-screen flex items-center justify-center bg-slate-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-slate-600 font-medium animate-pulse">Memverifikasi Sesi Admin...</p>
+          <p className="mt-4 text-slate-600 font-medium animate-pulse">Memverifikasi Otoritas Sesi...</p>
         </div>
       </div>
     );
@@ -78,39 +79,39 @@ function App() {
           <Route path="/detail/:id" element={<ProductDetail />} />
         </Route>
 
-        {/* ================= JALUR LOGIN ================= 
-            Logika Navigate di sini membantu jika user mencoba mengakses /login secara manual saat sudah login.
-        */}
+        {/* ================= JALUR LOGIN ================= */}
         <Route 
           path="/login" 
           element={isAuthenticated ? <Navigate to="/admin" replace /> : <Login />} 
         />
 
-        {/* ================= JALUR ADMIN (DIPROTEKSI) ================= */}
+        {/* ================= JALUR ADMIN (STRATEGI RBAC) ================= */}
         <Route 
           path="/admin" 
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowRoles={["admin", "staff"]}>
               <AdminLayout />
             </ProtectedRoute>
           }
         >
-          {/* Dashboard utama admin */}
+          {/* 1. Halaman Inventory (Bisa diakses Admin & Staff) */}
           <Route index element={
             <div className="space-y-6">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                   <h2 className="text-2xl font-bold tracking-tight text-slate-800">Manajemen Inventory</h2>
-                  <p className="text-sm text-slate-500 font-medium">
-                    Total: <span className="text-blue-600">{products.length}</span> produk aktif.
+                  <p className="text-sm text-slate-500 font-medium italic">
+                    Operator: <span className="text-blue-600 font-black uppercase">{user?.username}</span>
                   </p>
                 </div>
-                <AddProductModal onAdd={addProduct} />
+                {(user?.role === "admin" || user?.role === "staff") && (
+                  <AddProductModal onAdd={addProduct} />
+                )}
               </div>
               
               {productsLoading ? (
                 <div className="h-64 border-2 border-dashed rounded-xl flex items-center justify-center animate-pulse bg-slate-50 text-slate-400">
-                  Sinkronisasi database admin...
+                  Menyinkronkan data...
                 </div>
               ) : (
                 <ProductTable 
@@ -121,9 +122,18 @@ function App() {
               )}
             </div>
           } />
+
+          {/* 2. HALAMAN MANAJEMEN USER (KHUSUS ADMIN) */}
+          <Route 
+            path="users" 
+            element={
+              <ProtectedRoute allowRoles={["admin"]}>
+                <UserManagement />
+              </ProtectedRoute>
+            } 
+          />
         </Route>
 
-        {/* FALLBACK: Jika rute tidak ditemukan */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
