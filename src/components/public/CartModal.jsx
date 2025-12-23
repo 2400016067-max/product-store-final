@@ -13,6 +13,7 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
+  SheetDescription, // PERBAIKAN: Tambahkan import ini
   SheetTrigger,
   SheetFooter,
 } from "@/components/ui/sheet";
@@ -36,6 +37,7 @@ export default function CartModal() {
         <Button 
           variant="default" 
           size="icon" 
+          // POSISI: Tetap menggunakan bottom-1 sesuai keinginanmu agar tidak terlalu tinggi
           className="fixed bottom-1 right-1 h-16 w-16 rounded-full shadow-2xl bg-blue-600 hover:bg-blue-700 transition-all active:scale-90 z-50 group border-4 border-white"
         >
           <ShoppingCart className="text-white group-hover:rotate-12 transition-transform" size={28} />
@@ -47,7 +49,6 @@ export default function CartModal() {
         </Button>
       </SheetTrigger>
 
-      {/* 1. PERUBAHAN UTAMA: Lebar Sheet dinaikkan ke sm:max-w-xl (sekitar 576px) atau md:w-[500px] */}
       <SheetContent className="w-full sm:max-w-xl md:w-[550px] flex flex-col p-0 border-l-0 shadow-2xl rounded-l-[2rem]">
         <SheetHeader className="p-8 border-b bg-white rounded-tl-[2rem]">
           <SheetTitle className="flex items-center gap-4 text-xl font-black text-slate-900 uppercase tracking-tight">
@@ -56,6 +57,11 @@ export default function CartModal() {
             </div>
             Keranjang Belanja
           </SheetTitle>
+          
+          {/* PERBAIKAN UTAMA: Menghilangkan warning kuning di console */}
+          <SheetDescription className="sr-only">
+            Kelola daftar produk pilihan Anda sebelum melanjutkan ke pembayaran via WhatsApp. [cite: 2025-09-29]
+          </SheetDescription>
         </SheetHeader>
 
         <ScrollArea className="flex-1 px-8">
@@ -73,7 +79,6 @@ export default function CartModal() {
             <div className="py-8 space-y-8">
               {cart.map((item) => (
                 <div key={item.id} className="flex gap-6 group items-center animate-in fade-in slide-in-from-right-4">
-                  {/* 2. UKURAN GAMBAR: Diperbesar dari h-20 ke h-28 agar seimbang dengan lebar card */}
                   <div className="h-28 w-28 rounded-2xl overflow-hidden bg-slate-50 border-2 border-slate-100 shrink-0">
                     <img 
                       src={item.image} 
@@ -100,7 +105,6 @@ export default function CartModal() {
                         Rp {item.price.toLocaleString("id-ID")}
                       </p>
                       
-                      {/* 3. KONTROL QUANTITY: Dibuat lebih besar dan tactile */}
                       <div className="flex items-center gap-4 bg-slate-100 rounded-xl px-4 py-2 border border-slate-200">
                         <button 
                           onClick={() => updateQuantity(item.id, -1)}
@@ -127,7 +131,6 @@ export default function CartModal() {
           )}
         </ScrollArea>
 
-        {/* 4. FOOTER LEBIH LEBAR DAN TEGAS */}
         {cart.length > 0 && (
           <SheetFooter className="p-8 bg-slate-50/50 border-t flex-col gap-6">
             <div className="space-y-4 w-full">

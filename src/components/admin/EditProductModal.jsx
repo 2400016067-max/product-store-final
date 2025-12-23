@@ -1,13 +1,20 @@
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+// PERBAIKAN: Menambahkan DialogDescription ke dalam import
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogDescription, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogTrigger 
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Pencil } from "lucide-react"; // Ikon Edit
+import { Pencil } from "lucide-react"; 
 
 export default function EditProductModal({ product, onUpdate }) {
   const [open, setOpen] = useState(false);
   
-  // State form
   const [formData, setFormData] = useState({
     name: "", 
     category: "", 
@@ -17,7 +24,6 @@ export default function EditProductModal({ product, onUpdate }) {
     isAvailable: true
   });
 
-  // Sinkronisasi data saat modal dibuka atau produk berubah [cite: 2025-09-29]
   useEffect(() => {
     if (product) {
       setFormData({
@@ -25,35 +31,31 @@ export default function EditProductModal({ product, onUpdate }) {
         category: product.category || "",
         price: product.price || "",
         image: product.image || "",
-        description: product.description || "", // Pastikan deskripsi terbawa
-        isAvailable: product.isAvailable // Boolean status stok
+        description: product.description || "",
+        isAvailable: product.isAvailable 
       });
     }
-  }, [product]);
+  }, [product, open]); // Menambahkan 'open' agar data reset setiap modal dibuka
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Validasi & Konversi Data
     const updatedData = {
       ...formData,
       price: Number(formData.price),
-      // Pastikan konversi ke Boolean benar (handling string "true"/"false")
       isAvailable: formData.isAvailable === true || formData.isAvailable === "true"
     };
 
-    // Kirim ID dan Data Baru ke Parent (Dashboard)
     const result = await onUpdate(product.id, updatedData);
     
     if (result.success) {
-      setOpen(false); // Tutup modal jika sukses
+      setOpen(false); 
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        {/* Tombol Pemicu (Ikon Pensil di Tabel) */}
         <Button variant="outline" size="icon" className="h-8 w-8 rounded-md border-amber-200 hover:bg-amber-50 text-amber-600">
           <Pencil size={14} />
         </Button>
@@ -65,10 +67,15 @@ export default function EditProductModal({ product, onUpdate }) {
             <Pencil size={18} className="text-amber-600" /> 
             Edit Produk
           </DialogTitle>
+          
+          {/* PERBAIKAN UTAMA: Menambahkan deskripsi aksesibilitas */}
+          {/* sr-only membuat teks ini hanya terbaca oleh screen reader, tidak muncul di UI */}
+          <DialogDescription className="sr-only">
+            Perbarui detail produk ID: {product?.id}. Pastikan semua informasi sudah benar sebelum menyimpan.
+          </DialogDescription>
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4 mt-2">
-          {/* 1. Nama Produk */}
           <div className="space-y-1">
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nama Produk</label>
             <Input 
@@ -79,7 +86,6 @@ export default function EditProductModal({ product, onUpdate }) {
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-             {/* 2. Kategori */}
              <div className="space-y-1">
               <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Kategori</label>
               <Input 
@@ -89,7 +95,6 @@ export default function EditProductModal({ product, onUpdate }) {
               />
             </div>
 
-            {/* 3. Harga */}
             <div className="space-y-1">
               <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Harga (Rp)</label>
               <Input 
@@ -101,7 +106,6 @@ export default function EditProductModal({ product, onUpdate }) {
             </div>
           </div>
 
-          {/* 4. UPDATE STATUS STOK (Fitur Kunci) [cite: 2025-09-29] */}
           <div className="space-y-1">
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Status Stok</label>
             <select
@@ -114,7 +118,6 @@ export default function EditProductModal({ product, onUpdate }) {
             </select>
           </div>
 
-          {/* 5. URL Gambar */}
           <div className="space-y-1">
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">URL Gambar</label>
             <Input 
@@ -124,7 +127,6 @@ export default function EditProductModal({ product, onUpdate }) {
             />
           </div>
 
-          {/* 6. Deskripsi */}
           <div className="space-y-1">
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Deskripsi Singkat</label>
             <Input 
@@ -137,7 +139,7 @@ export default function EditProductModal({ product, onUpdate }) {
             <Button type="button" variant="outline" className="w-full" onClick={() => setOpen(false)}>
               Batal
             </Button>
-            <Button type="submit" className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold">
+            <Button type="submit" className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold transition-all active:scale-95">
               SIMPAN PERUBAHAN
             </Button>
           </div>
