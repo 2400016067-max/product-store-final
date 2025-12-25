@@ -2,10 +2,13 @@
 // Gunakan nama kategori yang rapi (Capital Case) agar tampilan UI bagus
 
 export const CATEGORIES = [
-  "Audio",
   "Elektronik",
-  "Fashion",
-  "Aksesoris"
+  "Otomotif",
+  "Kesehatan",
+  "Hobi",
+  "Rumah Tangga",
+  "Furniture",
+  "Edukasi"
 ];
 
 export const ORDER_STATUS = [

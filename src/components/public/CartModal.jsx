@@ -1,7 +1,7 @@
 import React from "react";
-import { useNavigate, useLocation } from "react-router-dom"; // Tambahkan ini
+import { useNavigate, useLocation } from "react-router-dom";
 import { useCart } from "../../contexts/CartContext";
-import { useAuth } from "../../contexts/AuthContext"; // Tambahkan ini
+import { useAuth } from "../../contexts/AuthContext";
 import { 
   ShoppingBag, 
   Trash2, 
@@ -26,27 +26,50 @@ import { Separator } from "@/components/ui/separator";
 export default function CartModal() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAuthenticated } = useAuth(); // Ambil status login [cite: 2025-12-13]
+  const { isAuthenticated } = useAuth();
   
+  // Kita ambil data dari CartContext
   const { 
     cart, 
     removeFromCart, 
     updateQuantity, 
     totalPrice, 
-    totalItems,
-    generateWAMessage 
+    totalItems 
   } = useCart();
 
-  // FUNGSI PROTEKSI CHECKOUT [cite: 2025-09-29, 2025-12-13]
+  // FUNGSI UTAMA: Membuat pesan WA dan Checkout
   const handleCheckout = () => {
+    // 1. Validasi Login
     if (!isAuthenticated) {
       alert("Otoritas Terbatas: Anda harus login sebagai Viewer untuk melakukan pemesanan agar status paket dapat dipantau.");
-      // Simpan lokasi saat ini agar setelah login bisa balik lagi ke sini (Opsional untuk Modal)
       navigate("/login", { state: { from: location } }); 
       return;
     }
-    // Jika sudah login, baru buka WhatsApp
-    window.open(generateWAMessage(), "_blank");
+
+    // 2. Setting Nomor WhatsApp & Pesan
+    const phoneNumber = "6282220947302"; // Sesuaikan dengan nomor adminmu
+    
+    let message = `*KONFIRMASI PESANAN (CHECKOUT)*\n`;
+    message += `--------------------------------\n\n`;
+
+    // 3. Looping Produk di Keranjang untuk dimasukkan ke pesan
+    cart.forEach((item, index) => {
+      const subtotal = item.price * item.quantity;
+      message += `${index + 1}. *${item.name}*\n`;
+      message += `   Jumlah: ${item.quantity}x\n`;
+      message += `   Harga: Rp ${item.price.toLocaleString("id-ID")}\n`;
+      message += `   Subtotal: Rp ${subtotal.toLocaleString("id-ID")}\n\n`;
+    });
+
+    // 4. Menambahkan Total Akhir
+    message += `--------------------------------\n`;
+    message += `*TOTAL BAYAR: Rp ${totalPrice.toLocaleString("id-ID")}*\n`;
+    message += `--------------------------------\n\n`;
+    message += `Halo Admin, saya sudah memilih produk di atas. Mohon info detail pembayaran dan pengirimannya. Terima kasih!`;
+
+    // 5. Eksekusi buka WhatsApp
+    const waUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
+    window.open(waUrl, "_blank");
   };
 
   return (
@@ -76,7 +99,7 @@ export default function CartModal() {
           </SheetTitle>
           
           <SheetDescription className="sr-only">
-            Kelola daftar produk pilihan Anda sebelum melanjutkan ke pembayaran via WhatsApp. [cite: 2025-09-29]
+            Kelola daftar produk pilihan Anda sebelum melanjutkan ke pembayaran via WhatsApp.
           </SheetDescription>
         </SheetHeader>
 
@@ -164,7 +187,6 @@ export default function CartModal() {
             </div>
 
             <div className="flex flex-col gap-3 w-full">
-              {/* TOMBOL UPGRADE: Menggunakan onClick untuk validasi auth [cite: 2025-12-13] */}
               <Button 
                 onClick={handleCheckout} 
                 className="w-full h-14 rounded-2xl bg-green-600 hover:bg-green-700 text-white shadow-xl shadow-green-100 transition-all active:scale-95 border-b-4 border-green-800 flex items-center justify-center gap-3 text-sm font-black"

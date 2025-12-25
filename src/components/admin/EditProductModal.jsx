@@ -11,9 +11,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Pencil } from "lucide-react"; 
 
-// 1. STANDARISASI KATEGORI
-// Letakkan di luar komponen agar tidak dibuat ulang setiap render (Efficiency)
-const CATEGORIES = ["Audio", "Elektronik", "Fashion", "Aksesoris"];
+// 1. IMPORT DENGAN PATH YANG BENAR
+// Keluar dari admin (../), keluar dari components (../), masuk ke lib (/lib)
+import { CATEGORIES } from "../../lib/constants"; 
 
 export default function EditProductModal({ product, onUpdate }) {
   const [open, setOpen] = useState(false);
@@ -87,7 +87,7 @@ export default function EditProductModal({ product, onUpdate }) {
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            {/* 2. PERUBAHAN INPUT KATEGORI KE SELECT */}
+            {/* KATEGORI */}
             <div className="space-y-1">
               <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Kategori</label>
               <select
