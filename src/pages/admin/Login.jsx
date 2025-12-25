@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom"; // TAMBAHKAN useLocation
 import { useAuth } from "../../contexts/AuthContext"; 
 import { Loader2, Lock, AlertTriangle, ArrowLeft, CheckCircle2 } from "lucide-react"; 
 import { Button } from "@/components/ui/button"; 
@@ -9,29 +9,36 @@ export default function Login() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
-  const [isSuccess, setIsSuccess] = useState(false); // State untuk feedback sukses
+  const [isSuccess, setIsSuccess] = useState(false); 
   
   const [localLoading, setLocalLoading] = useState(false); 
   const [failedAttempts, setFailedAttempts] = useState(0); 
-  const [isLocked, setIsLocked] = useState(false);         
-  const [timeLeft, setTimeLeft] = useState(0);             
+  const [isLocked, setIsLocked] = useState(false);          
+  const [timeLeft, setTimeLeft] = useState(0);              
 
   const { login, isAuthenticated, user } = useAuth(); 
   const navigate = useNavigate();
+  const location = useLocation(); // Ambil data lokasi asal [cite: 2025-12-13]
 
-  // --- 1. WATCHDOG REDIRECT (Sadar Role) ---
+  // --- 1. WATCHDOG REDIRECT (Sadar Konteks & Role) [cite: 2025-09-29] ---
   useEffect(() => {
     if (isAuthenticated && user) {
-      // Logika Cerdas: Cek siapa yang login
-      if (user.role === "viewer") {
-        // Jika Dadan yang login, kirim ke halaman utama (Katalog Public)
-        navigate("/", { replace: true });
+      // Ambil lokasi asal dari state, atau gunakan default berdasarkan role
+      const from = location.state?.from?.pathname;
+
+      if (from) {
+        // Jika user datang karena dipaksa login (misal dari detail produk/keranjang)
+        navigate(from, { replace: true });
       } else {
-        // Jika Imam atau Raka, baru kirim ke Dashboard Admin
-        navigate("/admin", { replace: true });
+        // Jika login normal tanpa paksaan redirect
+        if (user.role === "viewer") {
+          navigate("/", { replace: true });
+        } else {
+          navigate("/admin", { replace: true });
+        }
       }
     }
-  }, [isAuthenticated, user, navigate]);
+  }, [isAuthenticated, user, navigate, location.state]);
 
   // --- 2. LOGIKA TIMER BRUTE FORCE ---
   useEffect(() => {
@@ -75,7 +82,7 @@ export default function Login() {
       
       if (result && result.success) {
         setFailedAttempts(0);
-        setIsSuccess(true); // Tampilkan status sukses sebelum pindah halaman
+        setIsSuccess(true); // Memicu useEffect Watchdog di atas [cite: 2025-12-13]
       } else {
         setLocalLoading(false); 
         handleFailedAttempt(result?.message);
@@ -101,11 +108,11 @@ export default function Login() {
           }`}>
             {isSuccess ? <CheckCircle2 size={32} /> : isLocked ? <AlertTriangle size={32} /> : <Lock size={32} />}
           </div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight">
-            {isSuccess ? "Berhasil Masuk!" : "Login Admin"}
+          <h1 className="text-3xl font-black text-slate-900 tracking-tight uppercase">
+            {isSuccess ? "Berhasil Masuk!" : "Otentikasi User"}
           </h1>
-          <p className="text-slate-400 text-sm mt-2 font-medium">
-            {isSuccess ? "Menyiapkan dashboard anda..." : "Gunakan akun Imam, Raka, atau Dadan."}
+          <p className="text-slate-400 text-sm mt-2 font-medium italic">
+            {isSuccess ? "Menyiapkan data anda..." : "Akses khusus untuk pelanggan & staff."}
           </p>
         </div>
 
@@ -129,8 +136,8 @@ export default function Login() {
               disabled={isLocked || localLoading || isSuccess} 
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="Ex: Imam"
-              className="h-14 bg-slate-50 border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 transition-all text-base px-5"
+              placeholder="Masukkan username anda..."
+              className="h-14 bg-slate-50 border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 transition-all text-base px-5 shadow-inner"
             />
           </div>
 
@@ -143,7 +150,7 @@ export default function Login() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              className="h-14 bg-slate-50 border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 transition-all text-base px-5"
+              className="h-14 bg-slate-50 border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 transition-all text-base px-5 shadow-inner"
             />
           </div>
 
@@ -165,7 +172,7 @@ export default function Login() {
             ) : isSuccess ? (
               "MENGALIHKAN..."
             ) : (
-              "MASUK SEKARANG"
+              "VERIFIKASI & MASUK"
             )}
           </Button>
         </form>
@@ -177,7 +184,7 @@ export default function Login() {
             className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 hover:text-blue-600 transition-all flex items-center justify-center gap-2 w-full group"
           >
             <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform" />
-            Kembali ke Toko
+            Lanjutkan sebagai Tamu
           </button>
         </div>
       </div>

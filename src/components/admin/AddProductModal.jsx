@@ -1,5 +1,4 @@
 import { useState } from "react";
-// PERBAIKAN: Tambahkan DialogDescription ke dalam import
 import { 
   Dialog, 
   DialogContent, 
@@ -11,13 +10,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PlusCircle } from "lucide-react";
+// 1. IMPORT KONSTANTA KATEGORI
+import { CATEGORIES } from "@/lib/constants";
 
 export default function AddProductModal({ onAdd }) {
   const [open, setOpen] = useState(false);
   
   const [formData, setFormData] = useState({
     name: "", 
-    category: "", 
+    category: "", // Akan diisi melalui select
     price: "", 
     image: "", 
     description: "",
@@ -60,15 +61,13 @@ export default function AddProductModal({ onAdd }) {
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold">Tambah Produk Baru</DialogTitle>
-          
-          {/* PERBAIKAN: Menambahkan deskripsi untuk aksesibilitas & menghilangkan warning console */}
           <DialogDescription className="sr-only">
-            Silakan isi formulir di bawah ini untuk menambahkan produk baru ke dalam katalog sistem informasi toko Anda. [cite: 2025-09-29]
+            Silakan isi formulir di bawah ini untuk menambahkan produk baru ke dalam katalog sistem informasi toko Anda.
           </DialogDescription>
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4 mt-2">
-          {/* 1. Nama Produk */}
+          {/* Nama Produk */}
           <div className="space-y-1">
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nama Produk</label>
             <Input 
@@ -80,18 +79,25 @@ export default function AddProductModal({ onAdd }) {
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-             {/* 2. Kategori */}
-             <div className="space-y-1">
+            {/* 2. PERUBAHAN: DARI INPUT KE SELECT KATEGORI */}
+            <div className="space-y-1">
               <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Kategori</label>
-              <Input 
-                placeholder="Elektronik" 
-                value={formData.category} 
-                onChange={(e) => setFormData({...formData, category: e.target.value})} 
-                required 
-              />
+              <select
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                value={formData.category}
+                onChange={(e) => setFormData({...formData, category: e.target.value})}
+                required
+              >
+                <option value="" disabled>Pilih Kategori</option>
+                {CATEGORIES.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
+              </select>
             </div>
 
-            {/* 3. Harga */}
+            {/* Harga */}
             <div className="space-y-1">
               <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Harga (Rp)</label>
               <Input 
@@ -104,7 +110,7 @@ export default function AddProductModal({ onAdd }) {
             </div>
           </div>
 
-          {/* 4. Status Stok */}
+          {/* Status Stok */}
           <div className="space-y-1">
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Status Stok</label>
             <select
@@ -117,7 +123,7 @@ export default function AddProductModal({ onAdd }) {
             </select>
           </div>
 
-          {/* 5. URL Gambar */}
+          {/* URL Gambar */}
           <div className="space-y-1">
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">URL Gambar</label>
             <Input 
@@ -128,7 +134,7 @@ export default function AddProductModal({ onAdd }) {
             />
           </div>
 
-          {/* 6. Deskripsi */}
+          {/* Deskripsi */}
           <div className="space-y-1">
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Deskripsi Singkat</label>
             <Input 

@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-// PERBAIKAN: Menambahkan DialogDescription ke dalam import
 import { 
   Dialog, 
   DialogContent, 
@@ -11,6 +10,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Pencil } from "lucide-react"; 
+
+// 1. STANDARISASI KATEGORI
+// Letakkan di luar komponen agar tidak dibuat ulang setiap render (Efficiency)
+const CATEGORIES = ["Audio", "Elektronik", "Fashion", "Aksesoris"];
 
 export default function EditProductModal({ product, onUpdate }) {
   const [open, setOpen] = useState(false);
@@ -35,7 +38,7 @@ export default function EditProductModal({ product, onUpdate }) {
         isAvailable: product.isAvailable 
       });
     }
-  }, [product, open]); // Menambahkan 'open' agar data reset setiap modal dibuka
+  }, [product, open]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -67,15 +70,13 @@ export default function EditProductModal({ product, onUpdate }) {
             <Pencil size={18} className="text-amber-600" /> 
             Edit Produk
           </DialogTitle>
-          
-          {/* PERBAIKAN UTAMA: Menambahkan deskripsi aksesibilitas */}
-          {/* sr-only membuat teks ini hanya terbaca oleh screen reader, tidak muncul di UI */}
           <DialogDescription className="sr-only">
             Perbarui detail produk ID: {product?.id}. Pastikan semua informasi sudah benar sebelum menyimpan.
           </DialogDescription>
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4 mt-2">
+          {/* NAMA PRODUK */}
           <div className="space-y-1">
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nama Produk</label>
             <Input 
@@ -86,15 +87,25 @@ export default function EditProductModal({ product, onUpdate }) {
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-             <div className="space-y-1">
+            {/* 2. PERUBAHAN INPUT KATEGORI KE SELECT */}
+            <div className="space-y-1">
               <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Kategori</label>
-              <Input 
-                value={formData.category} 
-                onChange={(e) => setFormData({...formData, category: e.target.value})} 
-                required 
-              />
+              <select
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                value={formData.category}
+                onChange={(e) => setFormData({...formData, category: e.target.value})}
+                required
+              >
+                <option value="" disabled>Pilih Kategori</option>
+                {CATEGORIES.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
+              </select>
             </div>
 
+            {/* HARGA */}
             <div className="space-y-1">
               <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Harga (Rp)</label>
               <Input 
@@ -106,6 +117,7 @@ export default function EditProductModal({ product, onUpdate }) {
             </div>
           </div>
 
+          {/* STATUS STOK */}
           <div className="space-y-1">
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Status Stok</label>
             <select
@@ -118,6 +130,7 @@ export default function EditProductModal({ product, onUpdate }) {
             </select>
           </div>
 
+          {/* URL GAMBAR */}
           <div className="space-y-1">
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">URL Gambar</label>
             <Input 
@@ -127,6 +140,7 @@ export default function EditProductModal({ product, onUpdate }) {
             />
           </div>
 
+          {/* DESKRIPSI */}
           <div className="space-y-1">
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Deskripsi Singkat</label>
             <Input 
@@ -135,6 +149,7 @@ export default function EditProductModal({ product, onUpdate }) {
             />
           </div>
 
+          {/* ACTIONS */}
           <div className="flex gap-3 mt-4">
             <Button type="button" variant="outline" className="w-full" onClick={() => setOpen(false)}>
               Batal
