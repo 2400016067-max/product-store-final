@@ -1,4 +1,6 @@
 import { createContext, useContext, useState, useEffect } from "react";
+// 1. IMPORT FIREBASE SDK [cite: 2025-12-13]
+import { auth, googleProvider, signInWithPopup } from "../lib/firebase";
 
 const AuthContext = createContext(null);
 
@@ -8,7 +10,7 @@ export const AuthProvider = ({ children }) => {
 
   const AUTH_API = "https://694615d7ed253f51719d04d2.mockapi.io/users";
 
-  // 1. Cek Sesi (Mengenali User saat refresh tab)
+  // 1. CEK SESI (Mengenali User saat refresh tab)
   useEffect(() => {
     const checkSession = async () => {
       try {
@@ -26,7 +28,52 @@ export const AuthProvider = ({ children }) => {
     checkSession();
   }, []);
 
-  // 2. Fungsi Login: Sekarang memetakan field pesanan baru [cite: 2025-09-29]
+  // 2. FUNGSI LOGIN GOOGLE (Pendaftaran Otomatis) [cite: 2025-09-29, 2025-11-02]
+  const loginWithGoogle = async () => {
+    try {
+      // Trigger Popup Google [cite: 2025-12-13]
+      const result = await signInWithPopup(auth, googleProvider);
+      const googleUser = result.user;
+
+      // Cek apakah email ini sudah ada di MockAPI
+      const response = await fetch(AUTH_API);
+      const users = await response.json();
+      
+      // Kita gunakan email Google sebagai 'username' unik [cite: 2025-09-29]
+      let foundUser = users.find(u => u.username === googleUser.email);
+
+      // JIKA USER BARU: Daftarkan otomatis ke MockAPI [cite: 2025-09-29, 2025-11-02]
+      if (!foundUser) {
+        const newUser = {
+          username: googleUser.email,
+          password: "google-auth-user", // Password dummy
+          name: googleUser.displayName,
+          role: "viewer", // Otomatis menjadi viewer [cite: 2025-11-02]
+          orderStatus: "Belum Ada Pesanan",
+          adminMessage: "Selamat datang! Akun Anda diverifikasi via Google.",
+          orderProduct: "",
+          orderDate: new Date().toISOString()
+        };
+
+        const createRes = await fetch(AUTH_API, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(newUser)
+        });
+        foundUser = await createRes.json();
+      }
+
+      // Finalisasi State & Session [cite: 2025-12-13]
+      setUser(foundUser);
+      sessionStorage.setItem("admin_user", JSON.stringify(foundUser));
+      return { success: true };
+    } catch (error) {
+      console.error("Google Login Error:", error);
+      return { success: false, message: "Gagal masuk dengan Google." };
+    }
+  };
+
+  // 3. FUNGSI LOGIN MANUAL (Username/Password) [cite: 2025-09-29]
   const login = async (username, password) => {
     try {
       const response = await fetch(AUTH_API);
@@ -39,15 +86,8 @@ export const AuthProvider = ({ children }) => {
 
       if (foundUser) {
         const userData = { 
-          id: foundUser.id, 
-          username: foundUser.username, 
-          name: foundUser.name,
-          role: foundUser.role.toLowerCase(), // Normalisasi ke huruf kecil [cite: 2025-09-29]
-          // --- DATA TRACKING PESANAN ---
-          orderStatus: foundUser.orderStatus || "Pending",
-          orderProduct: foundUser.orderProduct || "", // Nama produk yang dibeli
-          adminMessage: foundUser.adminMessage || "", // Pesan dari staff
-          orderDate: foundUser.orderDate || ""
+          ...foundUser,
+          role: foundUser.role.toLowerCase() // Normalisasi Role [cite: 2025-09-29]
         };
 
         setUser(userData); 
@@ -61,8 +101,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // 3. FUNGSI BARU: UPDATE ORDER (ADMIN & STAFF) [cite: 2025-11-02]
-  // UpdateData bisa berisi: { orderStatus, orderProduct, adminMessage }
+  // 4. UPDATE ORDER (ADMIN & STAFF) [cite: 2025-11-02]
   const updateUserOrder = async (userId, updateData) => {
     try {
       const response = await fetch(`${AUTH_API}/${userId}`, {
@@ -78,7 +117,6 @@ export const AuthProvider = ({ children }) => {
       
       const updatedData = await response.json();
 
-      // Sinkronisasi State jika yang diedit adalah akun yang sedang login
       if (user?.id === userId) {
         const newLocalData = { ...user, ...updatedData };
         setUser(newLocalData);
@@ -91,21 +129,14 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // 4. FUNGSI BARU: REFRESH DATA USER (VIEWER) [cite: 2025-09-29]
+  // 5. REFRESH DATA USER (VIEWER) [cite: 2025-09-29]
   const refreshUserData = async () => {
     if (!user) return;
     try {
       const response = await fetch(`${AUTH_API}/${user.id}`);
       if (response.ok) {
         const latestData = await response.json();
-        // Memastikan semua field terbaru ikut masuk ke state
-        const updatedUser = { 
-          ...user, 
-          orderStatus: latestData.orderStatus, 
-          orderProduct: latestData.orderProduct,
-          adminMessage: latestData.adminMessage,
-          orderDate: latestData.orderDate 
-        };
+        const updatedUser = { ...user, ...latestData };
         setUser(updatedUser);
         sessionStorage.setItem("admin_user", JSON.stringify(updatedUser));
       }
@@ -122,9 +153,10 @@ export const AuthProvider = ({ children }) => {
   const value = {
     user,
     login,
+    loginWithGoogle, // EKSPOS FUNGSI GOOGLE [cite: 2025-09-29]
     logout,
     loading,
-    updateUserOrder, // Fungsi tunggal untuk semua update pesanan
+    updateUserOrder, 
     refreshUserData, 
     isAuthenticated: !!user,
     isAdmin: user?.role === "admin",
