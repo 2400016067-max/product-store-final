@@ -9,73 +9,133 @@
 
 ---
 
-# 🛒 TechStore Inventory Management System
 
-**Final Project: Sistem Informasi - Pengembangan Web Berbasis React**
+Sistem ini adalah sebuah **Hybrid E-Commerce Management & Order Tracking System**. Keunikan sistem ini terletak pada kemampuannya menjembatani keterbatasan *backend* statis (MockAPI) dengan interaksi dinamis antara tiga entitas: Admin, Staff, dan Pelanggan .
 
----
+**Keunggulan Sistem:**
 
-## 📌 Deskripsi Proyek
-
-Aplikasi ini adalah sistem manajemen inventaris yang mengintegrasikan **Katalog Publik** dan **Dashboard Internal**. Fokus utama pengembangan ini adalah pada implementasi **Role-Based Access Control (RBAC)**, di mana fungsionalitas aplikasi berubah secara dinamis tergantung pada level otoritas pengguna yang login.
-
-## 🔑 Otoritas & Kredensial (Data Uji Dosen)
-
-Sistem ini mendukung tiga level otorisasi. Mohon gunakan akun berikut untuk menguji perbedaan hak akses di Dashboard:
-
-| Nama Pengguna | Username | Password | Role | Deskripsi Hak Akses |
-| --- | --- | --- | --- | --- |
-| **Imam Faqih M.** | `Imam` | `admin123` | **Admin** | Full Control (Create, Read, Update, Delete) |
-| **Asprak** | `asprak` | `asprak` | **Admin** | Full Control untuk keperluan penilaian |
-| **Dadan Julianto** | `Dadan` | `mamang` | **Staff** | Operasional (Create, Read, Update) - *No Delete* |
-| **Mamang Dadan** | `mamang` | `dadan` | **Staff** | Operasional Standar |
-| **Ahmad Raka P.** | `Raka` | `Raka` | **Viewer** | Read-Only (Hanya dapat memantau data) |
-
-> **Analisis Sistem:** Perbedaan role ini dikelola melalui *logic conditional rendering* pada komponen UI dan *protected routes* menggunakan React Router.
+1. **Modularitas**: Pemisahan komponen seperti `OrderDetailModal` dan `CartModal` memastikan kode mudah dipelihara (Maintainable) .
+2. **Keamanan Berlapis**: Adanya fitur *Brute Force Protection* (timer login) dan *Protected Routes* berbasis peran (Role-Based Access Control) .
+3. **Aliran Data Tertutup**: Sinkronisasi antara input manual Admin dengan tampilan *real-time* pelanggan menggunakan mekanisme `refreshUserData` .
 
 ---
 
-## 🚀 Fitur Unggulan
 
-1. **Multi-Role Dashboard**: Interface yang beradaptasi secara otomatis (Tombol 'Delete' hanya muncul untuk Admin).
-2. **Stateful Authentication**: Manajemen sesi pengguna yang terintegrasi dengan MockAPI.
-3. **Real-time Inventory Sync**: Sinkronisasi data produk menggunakan Axios dengan penanganan error yang komprehensif.
-4. **Responsive Management**: Form input dengan validasi yang dioptimalkan untuk perangkat mobile maupun desktop.
+```markdown
+# 🎧 ProductStore: Integrated Management & Tracking System
 
----
+ProductStore adalah platform sistem informasi manajemen inventaris dan layanan pelanggan berbasis web. Proyek ini dirancang untuk mensimulasikan ekosistem bisnis nyata yang melibatkan manajemen gudang, otoritas staf, dan layanan pelacakan pesanan mandiri bagi pelanggan. 
 
-## 🛠️ Tech Stack & Arsitektur
-
-* **Core**: React.js 18+ dengan Vite sebagai *build tool* tercepat saat ini.
-* **Routing**: `React Router DOM` dengan implementasi `ProtectedRoute` untuk menjaga keamanan data.
-* **Data Fetching**: Axios untuk komunikasi dengan **MockAPI** (Simulasi NoSQL Document DB).
-* **Design System**: Tailwind CSS untuk memastikan UI yang modern, bersih, dan profesional.
+## 🚀 Filosofi Sistem
+Aplikasi ini menerapkan prinsip **Separation of Concerns (SoC)** dan **Stateful User Interaction**. Setiap peran pengguna memiliki batas otoritas yang ketat untuk menjaga integritas data perusahaan.
 
 ---
 
-## 📂 Struktur Arsitektur Logika
+## 🛠️ Tech Stack
+* **Frontend**: React.js (Vite) 
+* **Styling**: Tailwind CSS & Shadcn UI 
+* **Routing**: React Router DOM (HashRouter) 
+* **Icons**: Lucide React 
+* **Database/API**: MockAPI (RESTful API Simulation) 
 
+---
+
+## 🔐 Matriks Otoritas (Access Control)
+
+Sistem ini membagi pengguna ke dalam tiga tingkatan otoritas utama: 
+
+| Fitur | Admin (Imam/Asprak) | Staff (Raka) | Viewer (Dadan) |
+| :--- | :---: | :---: | :---: |
+| Akses Katalog Publik | ✅ | ✅ | ✅ |
+| Tambah ke Keranjang | ✅ | ✅ | ✅ |
+| Login / Logout | ✅ | ✅ | ✅ |
+| Kelola Inventaris (Add/Edit) | ✅ | ✅ | ❌ |
+| Hapus Produk (Delete) | ✅ | ❌ | ❌ |
+| Manajemen Pesanan (Status/Pesan) | ✅ | ✅ | ❌ |
+| Kelola Akun Staf (Otoritas) | ✅ | ❌ | ❌ |
+| Lacak Status Pesanan Pribadi | ❌ | ❌ | ✅ |
+
+---
+
+## 🔄 Aliran Data (Data Flow)
+
+Sistem ini menggunakan mekanisme **Manual Entry - Realtime Fetch** untuk mensimulasikan pengiriman paket: 
+
+1.  **Transaction Initiation**: Viewer melakukan "pemesanan" melalui integrasi WhatsApp di halaman detail produk atau keranjang. 
+2.  **Operational Processing**: Admin/Staff melihat log user di `OrderManagement`. Admin mengisi field `orderProduct` (apa yang dibeli) dan `adminMessage` (catatan khusus) secara manual.
+3.  **Data Persistence**: Perubahan dikirim ke MockAPI menggunakan metode `PUT` dan disimpan secara permanen. 
+4.  **Client Update**: Viewer mengklik tombol "Lacak Pesanan" di Navbar. Fungsi `refreshUserData` akan menarik data terbaru dari MockAPI untuk menampilkan status terkini. 
+
+
+
+---
+
+## ✨ Fitur Unggulan
+
+### 🛡️ Keamanan & Integritas
+* **Brute Force Guard**: Pembekuan akses login selama 30 detik setelah 3 kali percobaan gagal. 
+* **Intelligent Redirect**: Mengingat halaman terakhir yang diakses user sebelum dipaksa login, dan mengembalikannya ke sana setelah login sukses. 
+
+### 📦 Manajemen Operasional
+* **Auto-Save Input**: Admin/Staff tidak perlu menekan tombol simpan; data otomatis terkirim saat kursor keluar dari area input (*onBlur*). 
+* **Interactive Tracking Card**: Kartu detail pesanan di sisi Viewer menggunakan desain balon chat untuk pesan personal dari Admin. 
+
+### 🛒 Pengalaman Belanja
+* **Advanced Filter**: Mesin filter produk berdasarkan kategori dan pencarian nama secara *real-time*. 
+* **WhatsApp Integration**: Otomatisasi pesan format teks profesional untuk pemesanan langsung ke Admin. 
+
+---
+
+## 📖 Panduan Penggunaan (User Manual)
+
+### A. Untuk Pelanggan (Viewer)
+1.  **Login**: Masuk menggunakan akun (Username: `Dadan`, Pass: `Dadan`). 
+2.  **Belanja**: Pilih produk, masukkan ke keranjang, atau klik "Tanya Admin". 
+3.  **Tracking**: Setelah berdiskusi dengan admin via WA, cek status pesananmu di tombol **"Lacak Pesanan"** pada Navbar. 
+4.  **Refresh**: Jika admin berkata sudah diupdate, tekan tombol **"Refresh"** di dalam kartu pesanan untuk melihat info terbaru. 
+
+### B. Untuk Staf Operasional (Staff)
+1.  **Dashboard**: Login (Username: `Raka`), akses **Inventory Dashboard** untuk update stok. 
+2.  **Update Pesanan**: Masuk ke menu **Manajemen Pesanan**. Masukkan nama barang yang dipesan pelanggan di kolom yang tersedia dan ubah statusnya. 
+
+### C. Untuk Administrator (Admin)
+1.  **Kontrol Penuh**: Login (Username: `Imam`), akses penuh ke semua menu. 
+2.  **Otoritas**: Gunakan menu **Kelola Otoritas** untuk menambah atau mengubah role user lain (misal: menaikkan Viewer menjadi Staff). 
+
+---
+
+## 📂 Struktur Direktori Utama
 ```text
 src/
- ├── hooks/         # Custom Hooks: useAuth (Logika RBAC), useProducts (API handling)
- ├── components/    # Atomic Design: UI Reusable, Navbar, Sidebar
- ├── pages/         # View Layer: Login, Dashboard, Public Catalog
- ├── context/       # AuthContext: Global state untuk menyimpan data user yang login
- └── utils/         # Helper functions untuk formatting data
+├── components/
+│   ├── admin/        # Komponen khusus panel kontrol
+│   ├── public/       # Komponen katalog & pelacakan pelanggan
+│   └── ProtectedRoute.jsx # Penjaga gerbang akses role
+├── contexts/
+│   ├── AuthContext.jsx   # Manajemen sesi & sinkronisasi API
+│   └── CartContext.jsx   # Logika keranjang belanja
+├── hooks/
+│   ├── useProducts.js    # Fetching data produk
+│   └── useFilteredProducts.js # Algoritma pencarian produk
+└── pages/
+    ├── admin/        # Halaman Inventory, Users, & Orders
+    └── public/       # Halaman Katalog & Detail Produk
 
 ```
 
 ---
 
-## 👥 Tim Pengembang (Kelompok)
+## 👨‍💻 Kontributor
 
-* **Imam Faqih Masduqi** - *Logic Architect & Security* (Backend Integration, RBAC Logic).
-* **Ahmad Raka Putra Pratama** - *Frontend Engineer* (UI Implementation, Public Catalog).
-* **Dadan Julianto** - *System Analyst* (Data Structure, Form Logic & Testing).
+* **Imam Faqih Masduqi (2400016067)** - Lead Developer & System Architect 
+* **Ahmad Raka Putra Pratama (2400016089)** - Developer 
+* **Dadan Julianto (2400016070)** - Developer 
 
 ---
 
-*Proyek ini merupakan bagian dari pemenuhan Tugas Besar mata kuliah Teknologi Web, Jurusan Sistem Informasi 2025.*
+*Proyek ini dibuat untuk memenuhi tugas mata kuliah Teknologi Web - Jurusan Sistem Informasi.* 
+
+```
 
 ---
 
