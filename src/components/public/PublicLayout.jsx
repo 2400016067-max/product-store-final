@@ -2,18 +2,17 @@ import { useState } from "react";
 import { Outlet, Link } from "react-router-dom";
 import { Input } from "@/components/ui/input"; 
 import { Button } from "@/components/ui/button"; 
-import { Search, LayoutDashboard } from "lucide-react"; 
+import { Search, LayoutDashboard, LogIn, UserCircle } from "lucide-react"; 
 import { CATEGORIES } from "@/lib/constants"; 
 import { cn } from "@/lib/utils"; 
 
-// IMPORT AUTH & MODAL [cite: 2025-12-13, 2025-12-22]
+// IMPORT AUTH & MODAL
 import { useAuth } from "../../contexts/AuthContext";
 import CartModal from "./CartModal"; 
-// SEPARATED COMPONENT [cite: 2025-09-29]
 import OrderDetailModal from "./OrderDetailModal"; 
 
 export default function PublicLayout() {
-  const { user, isAuthenticated, isAdmin, isStaff } = useAuth();
+  const { user, isAuthenticated, isAdmin, isStaff, logout } = useAuth(); // Tambahkan logout jika perlu
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("Semua");
 
@@ -28,42 +27,59 @@ export default function PublicLayout() {
             ProductStore
           </Link>
 
-          {/* SEARCH BAR (Tengah) */}
-          <div className="relative w-full md:w-96 order-last md:order-none">
+          {/* SEARCH BAR */}
+          <div className="relative w-full md:w-80 order-last md:order-none">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
             <Input 
-              placeholder="Cari produk favoritmu..." 
+              placeholder="Cari produk..." 
               className="pl-10 bg-slate-50 border-none focus-visible:ring-blue-600 h-10 shadow-sm"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
           
-          {/* NAVIGASI & STATUS (Kanan) */}
+          {/* NAVIGASI & STATUS (Kanan) - LOGIKA PINDAH KE SINI */}
           <nav className="flex items-center gap-3">
             
-            {/* 1. Quick Access untuk Admin/Staff [cite: 2025-09-29] */}
-            {(isAdmin || isStaff) && (
-              <Link 
-                to="/admin" 
-                className="hidden lg:flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg active:scale-95"
-              >
-                <LayoutDashboard size={14} />
-                Panel {user.role}
+            {/* 1. KONDISI: SUDAH LOGIN */}
+            {isAuthenticated ? (
+              <div className="flex items-center gap-3">
+                {/* Personalisasi Nama */}
+                <div className="flex flex-col items-end mr-2">
+                  <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Halo,</span>
+                  <span className="text-xs font-bold text-slate-800 leading-none">{user?.name}</span>
+                </div>
+
+                {/* Akses Dashboard (Hanya Admin/Staff) */}
+                {(isAdmin || isStaff) && (
+                  <Link 
+                    to="/admin" 
+                    className="flex items-center gap-2 px-3 py-2 bg-slate-900 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-md"
+                  >
+                    <LayoutDashboard size={12} />
+                    Panel
+                  </Link>
+                )}
+
+                {/* Order Tracking (Untuk Semua User Login) */}
+                <OrderDetailModal />
+                
+                {/* Tombol Logout Sederhana */}
+                <Button variant="ghost" size="sm" onClick={logout} className="text-slate-400 hover:text-red-600">
+                   <span className="text-[10px] font-bold uppercase">Keluar</span>
+                </Button>
+              </div>
+            ) : (
+              /* 2. KONDISI: BELUM LOGIN (Ganti Staff Access Footer ke sini) */
+              <Link to="/login">
+                <Button variant="default" size="sm" className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-5 flex gap-2 h-9">
+                  <LogIn size={14} />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Login</span>
+                </Button>
               </Link>
             )}
 
-            {/* 2. MODULAR TRACKING: Panggilan Komponen Terpisah [cite: 2025-09-29] */}
-            <OrderDetailModal />
-
-            {/* Navigasi Umum */}
-            <Link to="/" className="px-2 py-2 text-sm font-bold text-slate-600 hover:text-blue-600 transition-colors">
-              Katalog
-            </Link>
-            
             <div className="h-6 w-px bg-slate-200 mx-1"></div>
-
-            {/* Keranjang Belanja [cite: 2025-12-22] */}
             <CartModal />
           </nav>
         </div>
@@ -91,42 +107,17 @@ export default function PublicLayout() {
 
       {/* ================= MAIN CONTENT ================= */}
       <main className="flex-1 container mx-auto p-6">
-        {/* Mengirim context pencarian ke halaman katalog */}
         <Outlet context={{ searchQuery, selectedCategory }} /> 
       </main>
 
-      {/* ================= FOOTER ================= */}
+      {/* ================= FOOTER (DIBERSIHKAN) ================= */}
       <footer className="p-8 border-t bg-slate-50 mt-auto">
         <div className="container mx-auto px-4 flex flex-col md:flex-row justify-between items-center gap-4">
           <div>
             <p className="text-sm text-slate-900 font-black tracking-tighter uppercase leading-none italic">ProductStore</p>
             <p className="text-[10px] text-slate-400 font-bold tracking-widest uppercase mt-1">© 2025 Imam & Team - IS Project</p>
           </div>
-
-          <div className="flex items-center space-x-6">
-            {isAuthenticated ? (
-              <div className="flex items-center gap-4">
-                {(isAdmin || isStaff) && (
-                  <Link 
-                    to="/admin" 
-                    className="text-[10px] uppercase tracking-[0.2em] text-blue-600 hover:text-blue-800 font-black transition-all border-b border-blue-200"
-                  >
-                    Ke Dashboard
-                  </Link>
-                )}
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  User: {user.name} ({user.role})
-                </span>
-              </div>
-            ) : (
-              <Link 
-                to="/login" 
-                className="text-[10px] uppercase tracking-[0.2em] text-slate-300 hover:text-blue-600 font-black transition-all"
-              >
-                Staff Access
-              </Link>
-            )}
-          </div>
+          {/* Bagian kanan footer dikosongkan karena sudah pindah ke Navbar */}
         </div>
       </footer>
     </div>
