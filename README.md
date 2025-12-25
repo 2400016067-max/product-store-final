@@ -42,13 +42,37 @@ Aplikasi ini menerapkan prinsip **Separation of Concerns (SoC)** dan **Stateful 
 
 ## 🔐 Matriks Otoritas (Access Control)
 
-Sistem ini membagi pengguna ke dalam tiga tingkatan otoritas utama: 
+# 🎧 ProductStore: Integrated Management & Tracking System
 
-| Fitur | Admin (Imam/Asprak) | Staff (Raka) | Viewer (Dadan) |
+[![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://reactjs.org/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
+[![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
+[![MockAPI](https://img.shields.io/badge/MockAPI-orange?style=for-the-badge)](https://mockapi.io/)
+
+## 📝 Deskripsi Proyek
+**ProductStore** adalah platform Sistem Informasi Manajemen (SIM) inventaris dan pelacakan pesanan berbasis web. Proyek ini mensimulasikan ekosistem bisnis nyata yang mengintegrasikan manajemen gudang, kontrol otoritas staf, dan layanan *self-service tracking* bagi pelanggan.
+
+Sistem ini memecahkan masalah sinkronisasi data pada *backend* statis dengan menerapkan mekanisme **Stateful User Interaction** dan **Real-time API Fetching**.
+
+---
+
+## 🛠️ Tech Stack & Arsitektur
+* **Core**: React.js (Vite) - *Single Page Application (SPA) architecture.*
+* **Styling**: Tailwind CSS & Shadcn UI - *Utility-first CSS for responsive design.*
+* **Routing**: React Router DOM (HashRouter) - *Robust navigation with Protected Routes.*
+* **State Management**: Context API - *Global state for Authentication & Cart.*
+* **Database**: MockAPI (RESTful API Simulation).
+
+---
+
+## 🔐 Matriks Otoritas (Role-Based Access Control)
+
+Kami menerapkan prinsip **Least Privilege**, di mana pengguna hanya memiliki akses ke fungsi yang diperlukan untuk peran mereka.
+
+| Fitur | Admin (Imam) | Staff (Raka) | Viewer (Dadan) |
 | :--- | :---: | :---: | :---: |
 | Akses Katalog Publik | ✅ | ✅ | ✅ |
 | Tambah ke Keranjang | ✅ | ✅ | ✅ |
-| Login / Logout | ✅ | ✅ | ✅ |
 | Kelola Inventaris (Add/Edit) | ✅ | ✅ | ❌ |
 | Hapus Produk (Delete) | ✅ | ❌ | ❌ |
 | Manajemen Pesanan (Status/Pesan) | ✅ | ✅ | ❌ |
@@ -57,70 +81,47 @@ Sistem ini membagi pengguna ke dalam tiga tingkatan otoritas utama:
 
 ---
 
-## 🔄 Aliran Data (Data Flow)
+## 🔄 Analisis Aliran Data (Data Flow)
 
-Sistem ini menggunakan mekanisme **Manual Entry - Realtime Fetch** untuk mensimulasikan pengiriman paket: 
+Sistem menggunakan siklus **Manual Entry - Realtime Fetch** untuk menjamin integritas data:
 
-1.  **Transaction Initiation**: Viewer melakukan "pemesanan" melalui integrasi WhatsApp di halaman detail produk atau keranjang. 
-2.  **Operational Processing**: Admin/Staff melihat log user di `OrderManagement`. Admin mengisi field `orderProduct` (apa yang dibeli) dan `adminMessage` (catatan khusus) secara manual.
-3.  **Data Persistence**: Perubahan dikirim ke MockAPI menggunakan metode `PUT` dan disimpan secara permanen. 
-4.  **Client Update**: Viewer mengklik tombol "Lacak Pesanan" di Navbar. Fungsi `refreshUserData` akan menarik data terbaru dari MockAPI untuk menampilkan status terkini. 
-
-
+1.  **Transaction Initiation**: Viewer melakukan pemesanan via integrasi WhatsApp (Format otomatis).
+2.  **Data Processing**: Admin/Staff menerima notifikasi dan memperbarui log user di `OrderManagement`.
+3.  **Persistence Layer**: Menggunakan metode `PUT` ke MockAPI untuk sinkronisasi data permanen.
+4.  **Client Update**: Fungsi `refreshUserData` memungkinkan Viewer melihat perubahan status secara *real-time* tanpa perlu *re-login*.
 
 ---
 
 ## ✨ Fitur Unggulan
 
-### 🛡️ Keamanan & Integritas
-* **Brute Force Guard**: Pembekuan akses login selama 30 detik setelah 3 kali percobaan gagal. 
-* **Intelligent Redirect**: Mengingat halaman terakhir yang diakses user sebelum dipaksa login, dan mengembalikannya ke sana setelah login sukses. 
+### 🛡️ Keamanan Sistem
+* **Brute Force Guard**: Mekanisme pembekuan login (30 detik) setelah 3 kali kegagalan autentikasi untuk mencegah serangan kamus.
+* **Intelligent Redirect**: Sistem mengingat lokasi terakhir (*location state*) sebelum pengguna diminta login, meningkatkan kenyamanan UX.
 
-### 📦 Manajemen Operasional
-* **Auto-Save Input**: Admin/Staff tidak perlu menekan tombol simpan; data otomatis terkirim saat kursor keluar dari area input (*onBlur*). 
-* **Interactive Tracking Card**: Kartu detail pesanan di sisi Viewer menggunakan desain balon chat untuk pesan personal dari Admin. 
+### 📦 Efisiensi Operasional
+* **Auto-Save Input**: Implementasi *event* `onBlur` pada dashboard admin memastikan data tersimpan ke API tanpa tombol tambahan, mengurangi risiko kehilangan data.
+* **WhatsApp Logic**: Integrasi pesan teks dinamis untuk memangkas hambatan komunikasi antara pelanggan dan admin.
 
-### 🛒 Pengalaman Belanja
-* **Advanced Filter**: Mesin filter produk berdasarkan kategori dan pencarian nama secara *real-time*. 
-* **WhatsApp Integration**: Otomatisasi pesan format teks profesional untuk pemesanan langsung ke Admin. 
-
----
-
-## 📖 Panduan Penggunaan (User Manual)
-
-### A. Untuk Pelanggan (Viewer)
-1.  **Login**: Masuk menggunakan akun (Username: `Dadan`, Pass: `Dadan`). 
-2.  **Belanja**: Pilih produk, masukkan ke keranjang, atau klik "Tanya Admin". 
-3.  **Tracking**: Setelah berdiskusi dengan admin via WA, cek status pesananmu di tombol **"Lacak Pesanan"** pada Navbar. 
-4.  **Refresh**: Jika admin berkata sudah diupdate, tekan tombol **"Refresh"** di dalam kartu pesanan untuk melihat info terbaru. 
-
-### B. Untuk Staf Operasional (Staff)
-1.  **Dashboard**: Login (Username: `Raka`), akses **Inventory Dashboard** untuk update stok. 
-2.  **Update Pesanan**: Masuk ke menu **Manajemen Pesanan**. Masukkan nama barang yang dipesan pelanggan di kolom yang tersedia dan ubah statusnya. 
-
-### C. Untuk Administrator (Admin)
-1.  **Kontrol Penuh**: Login (Username: `Imam`), akses penuh ke semua menu. 
-2.  **Otoritas**: Gunakan menu **Kelola Otoritas** untuk menambah atau mengubah role user lain (misal: menaikkan Viewer menjadi Staff). 
+### 🎨 User Experience (UX)
+* **Interactive Tracking Card**: Visualisasi status pesanan menggunakan komponen balon chat yang intuitif.
+* **Advanced Filter**: Algoritma pencarian dan filter kategori yang bekerja secara *asynchronous*.
 
 ---
 
-## 📂 Struktur Direktori Utama
+## 📂 Struktur Folder
 ```text
 src/
 ├── components/
-│   ├── admin/        # Komponen khusus panel kontrol
-│   ├── public/       # Komponen katalog & pelacakan pelanggan
-│   └── ProtectedRoute.jsx # Penjaga gerbang akses role
+│   ├── admin/           # Dashboard & Management components
+│   ├── public/          # Catalog, Tracking, & Common UI
+│   └── ProtectedRoute.jsx # Gatekeeper for RBAC
 ├── contexts/
-│   ├── AuthContext.jsx   # Manajemen sesi & sinkronisasi API
-│   └── CartContext.jsx   # Logika keranjang belanja
+│   ├── AuthContext.jsx   # Global session & API Sync
+│   └── CartContext.jsx   # Shopping cart logic
 ├── hooks/
-│   ├── useProducts.js    # Fetching data produk
-│   └── useFilteredProducts.js # Algoritma pencarian produk
-└── pages/
-    ├── admin/        # Halaman Inventory, Users, & Orders
-    └── public/       # Halaman Katalog & Detail Produk
-
+│   ├── useProducts.js    # Data fetching logic
+│   └── useFilteredProducts.js # Search & Filter algorithms
+└── pages/                # Main view compositions
 ```
 
 ---
