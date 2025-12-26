@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Outlet, Link } from "react-router-dom";
 import { Input } from "@/components/ui/input"; 
 import { Button } from "@/components/ui/button"; 
-import { Search, LayoutDashboard, LogIn, UserCircle } from "lucide-react"; 
+import { Search, LayoutDashboard, LogIn } from "lucide-react"; 
 import { CATEGORIES } from "@/lib/constants"; 
 import { cn } from "@/lib/utils"; 
 
@@ -40,13 +40,14 @@ export default function PublicLayout() {
             <nav className="flex items-center gap-2 sm:gap-3">
               {isAuthenticated ? (
                 <div className="flex items-center gap-2 sm:gap-3">
+                  {/* FIX: Hapus 'hidden sm:flex' agar muncul di mobile */}
                   {(isAdmin || isStaff) && (
                     <Link 
                       to="/admin" 
-                      className="hidden sm:flex items-center gap-2 px-3 py-2 bg-slate-900 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-md"
+                      className="flex items-center gap-1.5 px-2 py-1.5 sm:px-3 sm:py-2 bg-slate-900 text-white rounded-lg text-[9px] sm:text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-md"
                     >
                       <LayoutDashboard size={12} />
-                      Panel
+                      <span className="hidden xs:block">Panel</span>
                     </Link>
                   )}
                   
@@ -70,7 +71,7 @@ export default function PublicLayout() {
             </nav>
           </div>
 
-          {/* BARIS BAWAH: SEARCH BAR (Full Width di Mobile) */}
+          {/* BARIS BAWAH: SEARCH BAR */}
           <div className="relative w-full md:max-w-md md:mx-auto">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
             <Input 
@@ -82,7 +83,7 @@ export default function PublicLayout() {
           </div>
         </div>
 
-        {/* FILTER KATEGORI (Horizontal Scroll) */}
+        {/* FILTER KATEGORI */}
         <div className="container mx-auto px-4 mt-3 flex gap-2 overflow-x-auto pb-2 scrollbar-hide border-t pt-2">
           {["Semua", ...CATEGORIES].map((cat) => (
             <Button
