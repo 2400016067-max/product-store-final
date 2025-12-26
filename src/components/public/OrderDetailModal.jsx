@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
+  DialogDescription, // 1. Tambahkan import ini
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -42,6 +43,10 @@ export default function OrderDetailModal() {
             <DialogTitle className="text-2xl font-black italic uppercase tracking-tighter flex items-center gap-3">
               <Package className="text-blue-400" /> Detail Pengiriman
             </DialogTitle>
+            {/* 2. Tambahkan DialogDescription dengan sr-only untuk fix warning */}
+            <DialogDescription className="sr-only">
+              Menampilkan detail status pesanan, item yang dibeli, dan catatan dari admin untuk ID Pelanggan: {user?.id}
+            </DialogDescription>
           </DialogHeader>
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-2">ID Pelanggan: {user?.id}</p>
         </div>
@@ -85,7 +90,6 @@ export default function OrderDetailModal() {
                 "{user?.adminMessage || "Pesanan Anda sedang dalam pengecekan staff. Mohon tunggu!"}"
               </p>
             </div>
-            {/* Ekor balon chat dekoratif */}
             <div className="absolute -top-1 right-0 w-4 h-4 bg-blue-600 rotate-45 transform translate-x-1/2 -translate-y-1/2"></div>
           </div>
 
