@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Pencil } from "lucide-react"; 
 
-// 1. IMPORT DENGAN PATH YANG BENAR
+// 1. FIX: IMPORT DENGAN PATH YANG BENAR
 // Keluar dari admin (../), keluar dari components (../), masuk ke lib (/lib)
 import { CATEGORIES } from "../../lib/constants"; 
 
