@@ -2,14 +2,14 @@ import { useState } from "react";
 import { Outlet, Link } from "react-router-dom";
 import { Input } from "@/components/ui/input"; 
 import { Button } from "@/components/ui/button"; 
-import { Search, LayoutDashboard, LogIn } from "lucide-react"; 
+import { Search, LayoutDashboard, LogIn, UserCircle, LogOut } from "lucide-react"; 
 import { CATEGORIES } from "@/lib/constants"; 
 import { cn } from "@/lib/utils"; 
 
 // IMPORT AUTH & MODAL
 import { useAuth } from "../../contexts/AuthContext";
-import CartModal from "./CartModal"; 
-import OrderDetailModal from "./OrderDetailModal"; 
+import CartModal from "./CartModal"; // Menggunakan desain terbaru
+import OrderDetailModal from "./OrderDetailModal"; // Menggunakan desain terbaru
 
 export default function PublicLayout() {
   const { user, isAuthenticated, isAdmin, isStaff, logout } = useAuth();
@@ -17,103 +17,149 @@ export default function PublicLayout() {
   const [selectedCategory, setSelectedCategory] = useState("Semua");
 
   return (
-    <div className="flex flex-col min-h-screen bg-white font-sans">
-      {/* ================= HEADER ================= */}
-      <header className="p-4 border-b bg-white/80 backdrop-blur-md sticky top-0 z-50 shadow-sm">
-        <div className="container mx-auto px-4 flex flex-col gap-4">
-          
-          {/* BARIS ATAS: Logo & Nav Aksi */}
-          <div className="flex justify-between items-center w-full">
-            {/* KIRI: LOGO & USERNAME */}
-            <div className="flex flex-col items-start">
-              <Link to="/" className="font-extrabold text-lg md:text-xl tracking-tighter text-blue-600 uppercase">
-                ProductStore
+    <div className="flex flex-col min-h-screen bg-white font-sans selection:bg-blue-100 selection:text-blue-900">
+      {/* ================= HEADER: GLASSMORPHISM EFFECT ================= */}
+      <header className="sticky top-0 z-50 w-full border-b border-slate-100 bg-white/70 backdrop-blur-xl transition-all duration-300">
+        <div className="container mx-auto px-4 md:px-6">
+          <div className="flex flex-col py-4 gap-4">
+            
+            {/* BARIS UTAMA: LOGO & NAVIGASI */}
+            <div className="flex justify-between items-center w-full">
+              {/* BRANDING SECTION */}
+              <Link to="/" className="group flex flex-col items-start gap-0">
+                <h1 className="font-black text-2xl md:text-3xl tracking-tighter text-slate-900 uppercase italic leading-none group-hover:text-blue-600 transition-colors">
+                  Product<span className="text-blue-600">Store</span>
+                </h1>
+                {isAuthenticated && (
+                  <div className="flex items-center gap-1.5 mt-1 animate-in fade-in slide-in-from-left-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                      Member: <span className="text-slate-900">{user?.name}</span>
+                    </p>
+                  </div>
+                )}
               </Link>
-              {isAuthenticated && (
-                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter mt-0.5 leading-none">
-                  Halo, <span className="text-blue-600 font-black">{user?.name}</span>
-                </p>
-              )}
+
+              {/* ACTION CENTER */}
+              <nav className="flex items-center gap-2 sm:gap-4">
+                {isAuthenticated ? (
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    {/* PANEL ADMIN/STAFF: Desain Bold & Ringkas */}
+                    {(isAdmin || isStaff) && (
+                      <Link 
+                        to="/admin" 
+                        className="flex items-center gap-2 px-3 py-2 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 hover:-translate-y-0.5 transition-all shadow-lg shadow-slate-200"
+                      >
+                        <LayoutDashboard size={14} />
+                        <span className="hidden sm:block">Dashboard</span>
+                      </Link>
+                    )}
+                    
+                    {/* MODAL PELACAKAN PESANAN */}
+                    <OrderDetailModal />
+                    
+                    {/* LOGOUT BUTTON */}
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={logout} 
+                      className="group flex items-center gap-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl px-2 transition-all active:scale-95"
+                    >
+                      <LogOut size={16} className="group-hover:-translate-x-0.5 transition-transform" />
+                      <span className="text-[10px] font-black uppercase hidden xs:block tracking-widest">Keluar</span>
+                    </Button>
+                  </div>
+                ) : (
+                  <Link to="/login">
+                    <Button 
+                      variant="default" 
+                      className="bg-blue-600 hover:bg-slate-900 text-white rounded-2xl px-6 h-10 shadow-xl shadow-blue-100 flex gap-2 transition-all active:scale-95 border-none"
+                    >
+                      <UserCircle size={18} />
+                      <span className="text-[10px] font-black uppercase tracking-widest">Sign In</span>
+                    </Button>
+                  </Link>
+                )}
+
+                <div className="h-6 w-[1px] bg-slate-100 mx-1 hidden sm:block"></div>
+                
+                {/* MODAL KERANJANG */}
+                <CartModal />
+              </nav>
             </div>
 
-            {/* KANAN: NAVIGASI AKSI */}
-            <nav className="flex items-center gap-2 sm:gap-3">
-              {isAuthenticated ? (
-                <div className="flex items-center gap-2 sm:gap-3">
-                  {/* FIX: Hapus 'hidden sm:flex' agar muncul di mobile */}
-                  {(isAdmin || isStaff) && (
-                    <Link 
-                      to="/admin" 
-                      className="flex items-center gap-1.5 px-2 py-1.5 sm:px-3 sm:py-2 bg-slate-900 text-white rounded-lg text-[9px] sm:text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-md"
-                    >
-                      <LayoutDashboard size={12} />
-                      <span className="hidden xs:block">Panel</span>
-                    </Link>
-                  )}
-                  
-                  <OrderDetailModal />
-                  
-                  <Button variant="ghost" size="sm" onClick={logout} className="text-slate-400 hover:text-red-600 p-1 sm:p-2">
-                     <span className="text-[9px] sm:text-[10px] font-bold uppercase">Keluar</span>
-                  </Button>
-                </div>
-              ) : (
-                <Link to="/login">
-                  <Button variant="default" size="sm" className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-4 flex gap-2 h-8">
-                    <LogIn size={12} />
-                    <span className="text-[9px] font-black uppercase tracking-widest">Login</span>
-                  </Button>
-                </Link>
-              )}
-
-              <div className="h-5 w-px bg-slate-200 mx-0.5"></div>
-              <CartModal />
-            </nav>
+            {/* BARIS KEDUA: SEARCH BAR - Terpusat & Fokus */}
+            <div className="relative w-full max-w-2xl mx-auto group">
+              <div className="absolute inset-0 bg-blue-100/30 rounded-2xl blur-lg opacity-0 group-focus-within:opacity-100 transition-opacity"></div>
+              <div className="relative flex items-center">
+                <Search className="absolute left-4 text-slate-400 group-focus-within:text-blue-600 transition-colors" size={18} />
+                <Input 
+                  placeholder="Cari koleksi produk terbaru..." 
+                  className="pl-12 h-12 bg-slate-50 border-2 border-slate-50 rounded-2xl focus-visible:ring-0 focus-visible:border-blue-600 focus-visible:bg-white shadow-sm transition-all font-medium text-sm"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+            </div>
           </div>
 
-          {/* BARIS BAWAH: SEARCH BAR */}
-          <div className="relative w-full md:max-w-md md:mx-auto">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-            <Input 
-              placeholder="Cari produk..." 
-              className="pl-10 bg-slate-50 border-none focus-visible:ring-blue-600 h-10 shadow-sm text-sm"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+          {/* KATEGORI NAVIGATION: Desain Pill yang Modern */}
+          <div className="flex gap-2 overflow-x-auto py-3 scrollbar-hide border-t border-slate-50">
+            {["Semua", ...CATEGORIES].map((cat) => (
+              <Button
+                key={cat}
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedCategory(cat)}
+                className={cn(
+                  "rounded-full text-[10px] font-black uppercase tracking-[0.2em] transition-all px-5 py-5 whitespace-nowrap border-2 border-transparent",
+                  selectedCategory === cat 
+                    ? "bg-slate-900 text-white shadow-xl shadow-slate-200" 
+                    : "text-slate-400 hover:bg-slate-50 hover:text-slate-900"
+                )}
+              >
+                {cat}
+              </Button>
+            ))}
           </div>
-        </div>
-
-        {/* FILTER KATEGORI */}
-        <div className="container mx-auto px-4 mt-3 flex gap-2 overflow-x-auto pb-2 scrollbar-hide border-t pt-2">
-          {["Semua", ...CATEGORIES].map((cat) => (
-            <Button
-              key={cat}
-              variant="ghost"
-              size="sm"
-              onClick={() => setSelectedCategory(cat)}
-              className={cn(
-                "rounded-full text-[10px] font-black uppercase tracking-widest transition-all px-3 whitespace-nowrap",
-                selectedCategory === cat 
-                  ? "bg-blue-600 text-white hover:bg-blue-700 shadow-md shadow-blue-100" 
-                  : "text-slate-400 hover:bg-slate-50"
-              )}
-            >
-              {cat}
-            </Button>
-          ))}
         </div>
       </header>
 
-      {/* ================= MAIN CONTENT ================= */}
-      <main className="flex-1 container mx-auto p-4 md:p-6">
-        <Outlet context={{ searchQuery, selectedCategory }} /> 
+      {/* ================= MAIN CONTENT AREA ================= */}
+      <main className="flex-1 w-full bg-white">
+        <div className="container mx-auto px-4 md:px-6 py-8 md:py-12 animate-in fade-in duration-700">
+          <Outlet context={{ searchQuery, selectedCategory }} /> 
+        </div>
       </main>
 
-      {/* ================= FOOTER ================= */}
-      <footer className="p-6 border-t bg-slate-50 mt-auto">
-        <div className="container mx-auto px-4 text-center md:text-left">
-          <p className="text-xs text-slate-900 font-black tracking-tighter uppercase leading-none italic">ProductStore</p>
-          <p className="text-[9px] text-slate-400 font-bold tracking-widest uppercase mt-1">© 2025 Imam & Team - IS Project</p>
+      {/* ================= FOOTER: MINIMALIST & BOLD ================= */}
+      <footer className="bg-slate-900 text-white py-12 px-6">
+        <div className="container mx-auto">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-8 border-b border-white/10 pb-12">
+            <div className="text-center md:text-left">
+              <h2 className="text-2xl font-black italic uppercase tracking-tighter mb-2">
+                Product<span className="text-blue-500">Store</span>
+              </h2>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.4em]">Curated Excellence Since 2025</p>
+            </div>
+            
+            <div className="flex gap-6">
+              {["Instagram", "WhatsApp", "Support"].map((item) => (
+                <button key={item} className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-blue-400 transition-colors">
+                  {item}
+                </button>
+              ))}
+            </div>
+          </div>
+          
+          <div className="flex flex-col md:flex-row justify-between items-center pt-8 gap-4 text-center md:text-left">
+            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.2em]">
+              © 2025 Team 404 Not Found — Technology Exhibition
+            </p>
+            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.2em] italic">
+              Empowered by React & Firebase
+            </p>
+          </div>
         </div>
       </footer>
     </div>
