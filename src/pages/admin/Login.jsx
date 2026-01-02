@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext"; 
-import { Loader2, Lock, AlertTriangle, ArrowLeft, CheckCircle2 } from "lucide-react"; 
+import { Loader2, Lock, AlertTriangle, ArrowLeft, CheckCircle2, Eye, EyeOff } from "lucide-react"; 
 import { Button } from "@/components/ui/button"; 
 import { Input } from "@/components/ui/input";
 
@@ -15,6 +15,9 @@ export default function Login() {
   const [failedAttempts, setFailedAttempts] = useState(0); 
   const [isLocked, setIsLocked] = useState(false);          
   const [timeLeft, setTimeLeft] = useState(0);              
+  
+  // STATE BARU: Untuk Show/Hide Password
+  const [showPassword, setShowPassword] = useState(false);
 
   // Ambil login manual DAN loginWithGoogle dari Context [cite: 2025-09-29]
   const { login, loginWithGoogle, isAuthenticated, user } = useAuth(); 
@@ -175,17 +178,30 @@ export default function Login() {
             />
           </div>
 
+          {/* --- BAGIAN PASSWORD (DENGAN TOGGLE EYE ICON) --- */}
           <div className="space-y-2">
             <label className="text-[11px] uppercase tracking-widest font-black text-slate-400 ml-1">Password</label>
-            <Input
-              type="password"
-              required
-              disabled={isLocked || localLoading || isSuccess} 
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className="h-14 bg-slate-50 border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 transition-all text-base px-5 shadow-inner"
-            />
+            <div className="relative">
+              <Input
+                type={showPassword ? "text" : "password"} 
+                required
+                disabled={isLocked || localLoading || isSuccess} 
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                // Tambahkan pr-12 supaya teks tidak nabrak ikon mata
+                className="h-14 bg-slate-50 border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 transition-all text-base px-5 pr-12 shadow-inner"
+              />
+              
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                disabled={isLocked || localLoading || isSuccess}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-600 transition-colors disabled:opacity-50"
+              >
+                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
+            </div>
           </div>
 
           <Button
