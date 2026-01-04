@@ -76,7 +76,7 @@ export default function AdminLayout() {
         <div className="mb-10 px-2 hidden md:block">
           <div className="flex items-center gap-2 mb-1">
             <div className={`h-3 w-3 rounded-full ${user?.role === "admin" ? 'bg-red-500' : 'bg-blue-500'} animate-pulse`}></div>
-            <h2 className="font-black text-2xl tracking-tighter text-slate-800">TECH<span className="text-blue-600">STORE</span></h2>
+            <h2 className="font-black text-2xl tracking-tighter text-slate-800">PRODUCT<span className="text-blue-600">STORE</span></h2>
           </div>
           <p className="text-[10px] text-slate-400 uppercase tracking-[0.2em] font-bold">Management System v1.1</p>
         </div>
