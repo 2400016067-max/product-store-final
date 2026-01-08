@@ -1,22 +1,27 @@
+import React from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom"; // Wajib untuk navigasi
+import { Link } from "react-router-dom"; 
 import { Eye, ShoppingCart, Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 export default function ProductCard({ product }) {
   return (
+    /* CONTAINER DESIGN: Soft Frame & Shadow Depth
+       Menggunakan rounded-[2rem] untuk estetika modern yang organik dan hover:shadow-blue-100/50 
+       untuk memberikan efek kedalaman (depth) yang berwarna saat disentuh. */
     <Card className="group overflow-hidden flex flex-col h-full bg-white border-2 border-slate-50 rounded-[2rem] hover:border-blue-100 hover:shadow-2xl hover:shadow-blue-100/50 transition-all duration-500 active:scale-[0.98]">
-      {/* 1. MEDIA SECTION: Gambar dengan Overlay */}
+      
+      {/* 1. MEDIA SECTION: Glassmorphism & Visual Engagement */}
       <div className="relative h-64 w-full overflow-hidden bg-slate-100">
-        {/* Category Badge di atas gambar */}
+        {/* GLASSMORPHISM BADGE: Efek bg-white/90 & backdrop-blur-md memberikan kesan transparan yang premium di atas gambar */}
         <div className="absolute top-4 left-4 z-10">
           <Badge className="bg-white/90 backdrop-blur-md text-blue-600 border-none px-3 py-1 text-[8px] font-black uppercase tracking-widest shadow-sm">
             {product.category}
           </Badge>
         </div>
 
-        {/* Gambar Produk dengan Fallback Logic */}
+        {/* IMAGE ANIMATION: group-hover:scale-110 menciptakan interaksi visual yang dinamis saat kartu di-hover */}
         <img 
           src={product.image} 
           alt={product.name} 
@@ -24,27 +29,33 @@ export default function ProductCard({ product }) {
           onError={(e) => { e.target.src = "https://placehold.co/600x600?text=Produk+Eksklusif" }} 
         />
         
-        {/* Overlay Hover Effect */}
+        {/* COLOR TINT OVERLAY: Memberikan lapisan warna biru tipis (blue-600/10) untuk menyatukan tone warna saat hover */}
         <div className="absolute inset-0 bg-blue-600/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
       </div>
       
-      {/* 2. CONTENT SECTION */}
+      {/* 2. CONTENT SECTION: Bold Typography & Hierarchy */}
       <CardHeader className="flex-grow pt-6 px-6 pb-2">
+        {/* RATING DISPLAY: Visual manis untuk meningkatkan trust pengguna */}
         <div className="flex items-center gap-1 mb-2">
           {[...Array(5)].map((_, i) => (
             <Star key={i} size={10} className="fill-yellow-400 text-yellow-400" />
           ))}
           <span className="text-[9px] font-bold text-slate-400 ml-1 uppercase">Top Rated</span>
         </div>
+        
+        {/* TITLE DESIGN: Font-black, Italic, & Tracking-tighter menciptakan identitas brand yang tegas dan modern */}
         <CardTitle className="text-xl font-black italic uppercase tracking-tighter text-slate-900 line-clamp-1 group-hover:text-blue-600 transition-colors">
           {product.name}
         </CardTitle>
       </CardHeader>
 
       <CardContent className="px-6 pb-4">
+        {/* DESCRIPTION: Line-clamp-2 menjaga tata letak tetap rapi meskipun deskripsi produk panjang */}
         <p className="text-[11px] text-slate-400 font-medium line-clamp-2 mb-4 leading-relaxed uppercase tracking-tight">
           {product.description}
         </p>
+        
+        {/* PRICE DISPLAY: Kontras tinggi dengan warna Blue-600 agar informasi harga menjadi fokus utama */}
         <div className="flex flex-col">
           <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Harga Terbaik</span>
           <div className="font-black text-blue-600 text-2xl tracking-tighter italic">
@@ -53,10 +64,10 @@ export default function ProductCard({ product }) {
         </div>
       </CardContent>
 
-      {/* 3. ACTION SECTION */}
+      {/* 3. ACTION SECTION: Call To Action (CTA) */}
       <CardFooter className="px-6 pb-6 pt-0">
         <div className="grid grid-cols-1 w-full gap-2">
-          {/* Navigasi Dinamis ke Halaman Detail */}
+          {/* BUTTON DESIGN: Modern Pill dengan tracking-[0.2em] (wide spacing) untuk kesan mewah pada teks tombol */}
           <Link to={`/detail/${product.id}`} className="w-full">
             <Button 
               variant="default" 

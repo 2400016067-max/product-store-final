@@ -68,12 +68,14 @@ export default function CartModal() {
   return (
     <Sheet>
       <SheetTrigger asChild>
+        {/* INTERACTION DESIGN: Efek hover rotate & active scale untuk feedback mikro yang responsif */}
         <Button 
           variant="ghost" 
           size="icon" 
           className="relative h-10 w-10 rounded-xl hover:bg-blue-50 text-blue-600 transition-all active:scale-95 group shadow-none"
         >
           <ShoppingCart className="group-hover:rotate-12 transition-transform" size={22} />
+          {/* BADGE DESIGN: Animasi zoom-in & font-black agar angka notifikasi terlihat kontras */}
           {totalItems > 0 && (
             <span className="absolute -top-1 -right-1 bg-blue-600 text-white text-[10px] font-black h-5 w-5 rounded-full flex items-center justify-center border-2 border-white animate-in zoom-in shadow-sm">
               {totalItems}
@@ -82,11 +84,14 @@ export default function CartModal() {
         </Button>
       </SheetTrigger>
 
+      {/* MODERN RADIUS: Penggunaan rounded-l-[2.5rem] memberikan kesan "Soft Frame" yang mewah */}
       <SheetContent className="w-full sm:max-w-md flex flex-col p-0 border-l-0 shadow-2xl bg-white sm:rounded-l-[2.5rem]">
-        {/* HEADER SECTION */}
+        
+        {/* HEADER SECTION: Bold Typography (font-black, uppercase, italic) untuk identitas brand yang kuat */}
         <SheetHeader className="p-8 border-b bg-white rounded-tl-[2.5rem] sticky top-0 z-10">
           <div className="flex items-center justify-between">
             <SheetTitle className="flex items-center gap-3 text-2xl font-black text-slate-900 uppercase tracking-tighter italic">
+              {/* PILL ICON: Rotasi 3 derajat memberikan kesan dinamis dan tidak kaku */}
               <div className="p-2.5 bg-slate-900 text-white rounded-xl rotate-3">
                 <ShoppingBag size={20} />
               </div>
@@ -101,10 +106,10 @@ export default function CartModal() {
           </SheetDescription>
         </SheetHeader>
 
-        {/* CONTENT SECTION */}
         <ScrollArea className="flex-1 px-8">
           {cart.length === 0 ? (
             <div className="h-[60vh] flex flex-col items-center justify-center text-center">
+              {/* VISUAL DEPTH: Efek blur-3xl di belakang ikon menciptakan kedalaman visual (Depth) */}
               <div className="relative mb-6">
                 <div className="absolute inset-0 bg-blue-100 blur-3xl rounded-full opacity-30 animate-pulse"></div>
                 <div className="relative p-10 bg-slate-50 rounded-[2.5rem] border-2 border-dashed border-slate-200">
@@ -120,7 +125,7 @@ export default function CartModal() {
             <div className="py-8 space-y-10">
               {cart.map((item) => (
                 <div key={item.id} className="flex gap-5 group items-start animate-in fade-in slide-in-from-right-5 duration-500">
-                  {/* Image Container */}
+                  {/* MODERN IMAGE PILL: Container gambar dengan rounded-2xl & efek scale saat hover */}
                   <div className="relative h-24 w-24 shrink-0">
                     <div className="absolute -inset-1 bg-slate-100 rounded-2xl scale-95 group-hover:scale-105 transition-transform duration-300"></div>
                     <img 
@@ -130,7 +135,6 @@ export default function CartModal() {
                     />
                   </div>
                   
-                  {/* Info Container */}
                   <div className="flex-1 flex flex-col gap-3">
                     <div className="flex justify-between items-start">
                       <h4 className="font-black text-slate-900 text-xs uppercase tracking-tight leading-tight max-w-[140px]">
@@ -152,7 +156,7 @@ export default function CartModal() {
                         </p>
                       </div>
                       
-                      {/* Control Quantity */}
+                      {/* DARK PILL CONTROL: Kontras tinggi menggunakan bg-slate-900 untuk elemen interaktif */}
                       <div className="flex items-center gap-4 bg-slate-900 text-white rounded-xl px-3 py-1.5 shadow-lg shadow-slate-200">
                         <button 
                           onClick={() => updateQuantity(item.id, -1)}
@@ -179,7 +183,7 @@ export default function CartModal() {
           )}
         </ScrollArea>
 
-        {/* FOOTER SECTION */}
+        {/* FOOTER SUMMARY: Penggunaan rounded-[2rem] & bg-slate-50 memisahkan area total dengan jelas (Sectioning) */}
         {cart.length > 0 && (
           <SheetFooter className="p-8 bg-white border-t-2 border-slate-50 flex-col gap-6 sticky bottom-0">
             <div className="space-y-4 w-full bg-slate-50 p-6 rounded-[2rem]">
@@ -195,6 +199,7 @@ export default function CartModal() {
               </div>
             </div>
 
+            {/* CHECKOUT BUTTON: High-contrast green dengan shadow lembut untuk Call to Action (CTA) utama */}
             <Button 
               onClick={handleCheckout} 
               className="w-full h-16 rounded-[1.5rem] bg-green-600 hover:bg-green-700 text-white shadow-xl shadow-green-100 transition-all active:scale-95 flex items-center justify-between px-8 group border-none"
