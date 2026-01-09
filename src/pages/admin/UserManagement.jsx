@@ -1,15 +1,16 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../../contexts/AuthContext";
-import { exportToCSV } from "../../utils/exportUtils"; // Pastikan path utility benar
+import { exportToCSV } from "../../utils/exportUtils";
 import { 
   UserCog, 
   ShieldCheck, 
+  ShieldAlert, // Icon untuk Manager/Admin lain
   UserCheck, 
   Eye, 
   Loader2, 
   AlertCircle,
   RefreshCw,
-  Download // Icon baru untuk export
+  Download 
 } from "lucide-react";
 import { 
   Table, 
@@ -30,7 +31,6 @@ export default function UserManagement() {
 
   const USERS_API = "https://694615d7ed253f51719d04d2.mockapi.io/users";
 
-  // 1. FETCH SEMUA USER
   const fetchUsers = async () => {
     setLoading(true);
     setError("");
@@ -50,33 +50,35 @@ export default function UserManagement() {
     fetchUsers();
   }, []);
 
-  // 2. FUNGSI EXPORT OTORITAS (Analisis SI) [cite: 2025-11-02]
-  const handleExportUsers = () => {
-    if (users.length === 0) return alert("Tidak ada data user untuk diunduh!");
+  // LOGIKA AUDIT OTORITAS (Hirarki Sistem) [cite: 2025-09-29]
+  const canManage = (targetUser) => {
+    // 1. Manager bersifat untouchable (Kasta tertinggi)
+    if (targetUser.role?.toLowerCase() === "manager") return false;
+    
+    // 2. Admin tidak boleh mengganggu sesama Admin lain
+    if (targetUser.role?.toLowerCase() === "admin" && targetUser.id !== currentUser.id) return false;
+    
+    // 3. User tidak bisa mengubah dirinya sendiri di sini (untuk mencegah kehilangan akses secara tidak sengaja)
+    if (targetUser.id === currentUser.id) return false;
 
-    // MAPPING KRITIS: Hanya ambil data profil dan role. PASSWORD DIABAIKAN. [cite: 2025-09-29]
+    // 4. Selebihnya (Staff & Viewer) bisa dikelola
+    return true;
+  };
+
+  const handleExportUsers = () => {
+    if (users.length === 0) return alert("Tidak ada data user!");
     const reportData = users.map(u => ({
       Nama_Lengkap: u.name || "N/A",
       Username: u.username || "N/A",
       Role: u.role || "viewer",
       ID_Sistem: u.id
     }));
-
     const headers = ["Nama Lengkap", "Username", "Otoritas/Role", "ID User"];
-    
-    // Penamaan file yang profesional [cite: 2025-12-25]
-    const fileName = `Laporan_Otoritas_User_${new Date().toISOString().split('T')[0]}`;
-    
+    const fileName = `Laporan_Otoritas_${new Date().toISOString().split('T')[0]}`;
     exportToCSV(reportData, fileName, headers);
   };
 
-  // 3. FUNGSI UPDATE ROLE
   const handleUpdateRole = async (targetUserId, targetUserName, newRole) => {
-    if (targetUserId === currentUser.id) {
-      alert("Anda tidak bisa mengubah role Anda sendiri demi keamanan sistem.");
-      return;
-    }
-
     const confirmMsg = `Ubah jabatan ${targetUserName} menjadi ${newRole.toUpperCase()}?`;
     if (!window.confirm(confirmMsg)) return;
 
@@ -87,7 +89,6 @@ export default function UserManagement() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ role: newRole }),
       });
-
       if (!response.ok) throw new Error("Gagal memperbarui otoritas.");
 
       setUsers((prev) =>
@@ -105,59 +106,40 @@ export default function UserManagement() {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-slate-400">
         <Loader2 className="animate-spin mb-2" size={32} />
-        <p className="text-sm font-medium italic">Memverifikasi Otoritas Pengguna TechStore...</p>
+        <p className="text-sm font-medium italic">Memverifikasi Otoritas Pengguna...</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      {/* Header Halaman */}
       <div className="flex justify-between items-end bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
         <div>
           <h2 className="text-2xl font-black text-slate-800 tracking-tight uppercase italic flex items-center gap-2">
             <UserCog className="text-blue-600" /> Manajemen Otoritas
           </h2>
-          <p className="text-sm text-slate-500 font-medium">Konfigurasi hak akses tim TechStore (Imam, Raka, Dadan). [cite: 2025-11-02]</p>
+          <p className="text-sm text-slate-500 font-medium italic">
+            Login as: <span className="text-rose-600 font-black">{currentUser?.role.toUpperCase()}</span>
+          </p>
         </div>
         
         <div className="flex gap-2">
-          {/* Tombol Export User */}
-          <Button 
-            onClick={handleExportUsers}
-            variant="outline"
-            size="sm"
-            className="rounded-xl border-emerald-200 bg-emerald-50 text-emerald-700 font-black hover:bg-emerald-100 uppercase text-[10px]"
-          >
+          <Button onClick={handleExportUsers} variant="outline" size="sm" className="rounded-xl border-emerald-200 bg-emerald-50 text-emerald-700 font-black hover:bg-emerald-100 uppercase text-[10px]">
             <Download size={14} className="mr-2" /> Export Otoritas
           </Button>
-
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={fetchUsers}
-            className="rounded-xl border-slate-200 text-slate-600 font-black hover:bg-slate-50 uppercase text-[10px]"
-          >
+          <Button variant="outline" size="sm" onClick={fetchUsers} className="rounded-xl border-slate-200 text-slate-600 font-black hover:bg-slate-50 uppercase text-[10px]">
             <RefreshCw size={14} className={`mr-2 ${loading ? 'animate-spin' : ''}`} /> Segarkan
           </Button>
         </div>
       </div>
 
-      {error && (
-        <div className="p-4 bg-red-50 border border-red-100 text-red-600 rounded-2xl flex items-center gap-3 text-sm font-bold">
-          <AlertCircle size={18} /> {error}
-        </div>
-      )}
-
-      {/* Tabel Manajemen User */}
       <div className="rounded-[2rem] border border-slate-100 bg-white shadow-xl shadow-slate-50 overflow-hidden">
         <Table>
           <TableHeader className="bg-slate-50/50">
             <TableRow>
               <TableHead className="font-black text-[10px] uppercase tracking-wider text-slate-400 p-6">Nama Lengkap</TableHead>
-              <TableHead className="font-black text-[10px] uppercase tracking-wider text-slate-400 p-6">Identitas Sistem</TableHead>
-              <TableHead className="font-black text-[10px] uppercase tracking-wider text-slate-400 text-center p-6">Status Role</TableHead>
-              <TableHead className="font-black text-[10px] uppercase tracking-wider text-slate-400 text-right p-6 px-8">Ubah Otoritas</TableHead>
+              <TableHead className="font-black text-[10px] uppercase tracking-wider text-slate-400 p-6 text-center">Status Role</TableHead>
+              <TableHead className="font-black text-[10px] uppercase tracking-wider text-slate-400 text-right p-6 px-8">Aksi Otoritas</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -165,59 +147,49 @@ export default function UserManagement() {
               <TableRow key={u.id} className="group hover:bg-slate-50/50 transition-colors">
                 <TableCell className="p-6">
                   <div className="flex items-center gap-3">
-                    <div className={`h-10 w-10 rounded-xl flex items-center justify-center font-black text-sm text-white shadow-md transition-transform group-hover:scale-110 ${u.role === 'admin' ? 'bg-rose-500' : u.role === 'staff' ? 'bg-blue-500' : 'bg-slate-400'}`}>
-                      {u.name ? u.name.charAt(0).toUpperCase() : "U"}
+                    <div className={`h-10 w-10 rounded-xl flex items-center justify-center font-black text-sm text-white shadow-md ${u.role === 'manager' ? 'bg-indigo-600' : u.role === 'admin' ? 'bg-rose-500' : 'bg-blue-500'}`}>
+                      {u.name?.charAt(0).toUpperCase()}
                     </div>
                     <div>
-                      <p className="font-black text-slate-800 uppercase text-xs tracking-tight">
-                        {u.name || "Unknown User"}
-                      </p>
-                      {u.id === currentUser.id && (
-                        <span className="bg-blue-100 text-blue-700 text-[9px] font-black px-2 py-0.5 rounded-full uppercase">Sesi Aktif</span>
-                      )}
+                      <p className="font-black text-slate-800 uppercase text-xs tracking-tight">{u.name}</p>
+                      <p className="text-[10px] text-slate-400 italic">@{u.username}</p>
                     </div>
                   </div>
                 </TableCell>
-                <TableCell className="p-6 text-slate-500 font-bold italic text-xs">
-                  @{u.username}
-                </TableCell>
                 <TableCell className="p-6 text-center">
                   <div className={`inline-flex items-center px-4 py-1.5 rounded-xl text-[10px] font-black uppercase border-b-4 ${
-                    u.role === "admin" 
-                      ? "bg-rose-50 text-rose-700 border-rose-600" 
-                      : u.role === "staff"
-                      ? "bg-blue-50 text-blue-700 border-blue-600"
-                      : "bg-slate-50 text-slate-700 border-slate-400"
+                    u.role === "manager" ? "bg-indigo-50 text-indigo-700 border-indigo-600" :
+                    u.role === "admin" ? "bg-rose-50 text-rose-700 border-rose-600" :
+                    "bg-blue-50 text-blue-700 border-blue-600"
                   }`}>
                     {u.role}
                   </div>
                 </TableCell>
                 <TableCell className="p-6 text-right px-8">
-                  {u.id !== currentUser.id ? (
+                  {canManage(u) ? (
                     <div className="flex justify-end gap-2">
                       <Button
-                        size="sm"
-                        variant="outline"
+                        size="sm" variant="outline"
                         disabled={actionLoading === u.id}
-                        className={`rounded-xl text-[10px] font-black h-9 transition-all px-4 ${u.role === 'staff' ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700' : 'hover:bg-blue-50 border-slate-200 text-slate-600'}`}
+                        className={`rounded-xl text-[10px] font-black h-9 transition-all px-4 ${u.role === 'staff' ? 'bg-blue-600 text-white border-blue-600' : 'hover:bg-blue-50 text-slate-600'}`}
                         onClick={() => handleUpdateRole(u.id, u.name, "staff")}
                       >
                         {actionLoading === u.id ? <Loader2 size={12} className="animate-spin" /> : <UserCheck size={14} className="mr-1.5" />}
                         STAF
                       </Button>
                       <Button
-                        size="sm"
-                        variant="outline"
+                        size="sm" variant="outline"
                         disabled={actionLoading === u.id}
-                        className={`rounded-xl text-[10px] font-black h-9 transition-all px-4 ${u.role === 'viewer' ? 'bg-slate-800 text-white border-slate-800 hover:bg-slate-900' : 'hover:bg-slate-100 border-slate-200 text-slate-600'}`}
+                        className={`rounded-xl text-[10px] font-black h-9 transition-all px-4 ${u.role === 'viewer' ? 'bg-slate-800 text-white border-slate-800' : 'hover:bg-slate-100 text-slate-600'}`}
                         onClick={() => handleUpdateRole(u.id, u.name, "viewer")}
                       >
                         <Eye size={14} className="mr-1.5" /> VIEWER
                       </Button>
                     </div>
                   ) : (
-                    <div className="text-[10px] font-black text-slate-300 italic pr-4 flex items-center justify-end gap-2 uppercase tracking-widest">
-                      <ShieldCheck size={16} className="text-rose-500" /> Master
+                    <div className="flex justify-end items-center gap-2 text-[9px] font-black text-slate-300 italic pr-4 uppercase tracking-[0.2em]">
+                      {u.role === "manager" ? <ShieldAlert size={16} className="text-indigo-500" /> : <ShieldCheck size={16} className="text-rose-500" />}
+                      {u.role === "manager" ? "High Authority" : u.id === currentUser.id ? "Your Profile" : "Restricted"}
                     </div>
                   )}
                 </TableCell>

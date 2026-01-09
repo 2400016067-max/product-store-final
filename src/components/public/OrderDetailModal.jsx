@@ -7,7 +7,6 @@ import {
   Box, 
   Truck, 
   CheckCircle2,
-  ChevronRight,
   MapPin,
   Loader2
 } from "lucide-react";
@@ -16,7 +15,7 @@ import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
+  DialogDescription, // Import sudah benar
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -28,15 +27,13 @@ export default function OrderDetailModal() {
   const { user, isViewer, refreshUserData } = useAuth();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Proteksi Role: Hanya untuk Viewer
   if (!isViewer) return null;
 
-  // Logika Pemetaan Progres Pesanan [cite: 2025-09-29]
   const getStatusStep = (status) => {
     if (status?.includes("Diproses")) return 1;
     if (status?.includes("Perjalanan") || status?.includes("Dikirim")) return 2;
     if (status?.includes("Selesai") || status?.includes("Diterima")) return 3;
-    return 0; // Pending / Belum Ada Pesanan
+    return 0; 
   };
 
   const currentStep = getStatusStep(user?.orderStatus);
@@ -44,7 +41,6 @@ export default function OrderDetailModal() {
   const handleRefresh = async () => {
     setIsRefreshing(true);
     await refreshUserData();
-    // Simulasi delay sedikit agar animasi loading terlihat
     setTimeout(() => setIsRefreshing(false), 800);
   };
 
@@ -66,14 +62,14 @@ export default function OrderDetailModal() {
 
       <DialogContent className="sm:max-w-[500px] rounded-[3rem] border-none shadow-2xl p-0 overflow-hidden font-sans bg-white animate-in zoom-in-95 duration-300">
         
-        {/* HEADER: Dynamic Background Based on Status */}
+        {/* HEADER SECTION */}
         <div className={cn(
           "p-10 text-white relative overflow-hidden transition-colors duration-500",
           currentStep === 3 ? "bg-emerald-600" : "bg-slate-900"
         )}>
           <div className="absolute -right-10 -top-10 opacity-20 rotate-12 bg-white w-64 h-64 rounded-full blur-3xl"></div>
           
-          <DialogHeader className="relative z-10">
+          <DialogHeader className="relative z-10 text-left">
             <div className="flex items-center gap-3 mb-4">
                <Badge className="bg-white/20 hover:bg-white/30 backdrop-blur-md border-none px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest text-white">
                  Real-time System v1.1
@@ -82,6 +78,11 @@ export default function OrderDetailModal() {
             <DialogTitle className="text-4xl font-black italic uppercase tracking-tighter flex items-center gap-3 leading-none">
               Order <br /> Tracking
             </DialogTitle>
+            
+            {/* FIX: Menambahkan DialogDescription untuk Aksesibilitas & Menghilangkan Warning */}
+            <DialogDescription className="sr-only">
+              Informasi pelacakan pesanan real-time untuk pengguna dengan ID {user?.id}.
+            </DialogDescription>
           </DialogHeader>
 
           <div className="mt-8 flex items-center justify-between relative z-10">
@@ -95,8 +96,7 @@ export default function OrderDetailModal() {
 
         <div className="p-8 space-y-8 bg-white">
           
-          {/* STEP PROGRESS INDICATOR  */}
-          
+          {/* STEP PROGRESS INDICATOR */}
           <div className="relative flex justify-between items-center px-4 py-2">
             <div className="absolute h-[2px] bg-slate-100 w-[80%] left-1/2 -translate-x-1/2 z-0"></div>
             <div 
@@ -120,7 +120,7 @@ export default function OrderDetailModal() {
           </div>
 
           {/* PRODUCT CARD */}
-          <div className="space-y-3">
+          <div className="space-y-3 text-left">
             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Detail Item</span>
             <div className="bg-slate-50 p-6 rounded-[2.5rem] border-2 border-slate-100 hover:border-blue-100 transition-all group">
               <p className="text-base font-black text-slate-900 leading-tight uppercase italic">
@@ -137,7 +137,7 @@ export default function OrderDetailModal() {
           </div>
 
           {/* ADMIN MESSAGE BUBBLE */}
-          <div className="relative group">
+          <div className="relative group text-left">
             <div className="absolute -left-2 top-0 bottom-0 w-1 bg-blue-600 rounded-full scale-y-0 group-hover:scale-y-100 transition-transform duration-500"></div>
             <div className="pl-4">
               <div className="flex items-center gap-2 mb-3">
@@ -152,7 +152,6 @@ export default function OrderDetailModal() {
             </div>
           </div>
 
-          {/* ACTION BUTTON */}
           <Button 
             onClick={handleRefresh} 
             disabled={isRefreshing}

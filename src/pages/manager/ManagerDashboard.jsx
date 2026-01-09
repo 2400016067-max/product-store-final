@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { 
   BarChart3, 
   Package, 
@@ -7,177 +7,224 @@ import {
   TrendingUp, 
   ShoppingCart,
   ArrowUpRight,
-  History
+  History,
+  Star,
+  ShieldCheck,
+  Activity
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useProducts } from "../../hooks/useProducts";
 import { useNavigate } from "react-router-dom";
 
 // Import Komponen Shadcn UI
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Progress } from "@/components/ui/progress";
 
 export default function ManagerDashboard() {
   const { user } = useAuth();
   const { products, loading: prodLoading } = useProducts();
+  const [allUsers, setAllUsers] = useState([]);
+  const [userLoading, setUserLoading] = useState(true);
   const navigate = useNavigate();
 
-  // --- LOGIKA ANALISIS DATA (Berdasarkan JSON Mock API Kamu) ---
-  
-  // 1. Hitung Total Nilai Aset (Managerial Insight)
+  // 1. Fetch Data User untuk Aktivitas & Analisis Tim [cite: 2025-11-02]
+  useEffect(() => {
+    const fetchSystemData = async () => {
+      try {
+        const res = await fetch("https://694615d7ed253f51719d04d2.mockapi.io/users");
+        const data = await res.json();
+        setAllUsers(data);
+      } catch (err) {
+        console.error("Dashboard Sync Error:", err);
+      } finally {
+        setUserLoading(false);
+      }
+    };
+    fetchSystemData();
+  }, []);
+
+  // --- LOGIKA MANAJERIAL (STRATEGIC INSIGHTS) ---
+
+  // A. Finansial & Inventaris [cite: 2025-09-29]
   const totalValue = products.reduce((acc, p) => acc + (p.price || 0), 0);
-  
-  // 2. Filter Produk Stok Habis (isAvailable: false)
   const outOfStock = products.filter(p => !p.isAvailable).length;
+  
+  // B. Kualitas Layanan (Berdasarkan Struktur Data Baru) [cite: 2025-09-29]
+  const avgStoreRating = products.length > 0 
+    ? (products.reduce((acc, p) => acc + (p.avgRating || 0), 0) / products.length).toFixed(1)
+    : 0;
 
-  // 3. Kelompokkan kategori untuk melihat diversitas produk
-  const categories = [...new Set(products.map(p => p.category))];
+  // C. Monitoring Pesanan Real-time (Filter User yang punya pesanan) [cite: 2025-12-13]
+  const activeOrders = allUsers
+    .filter(u => u.orderProduct && u.orderProduct !== "")
+    .sort((a, b) => new Date(b.orderDate) - new Date(a.orderDate));
 
-  // --- SIMULASI AKTIVITAS (Mengambil referensi dari JSON User yang kamu berikan) ---
-  const recentOrders = [
-    { id: "3", name: "Dadan Julianto", item: "Sony WH-1000XM5", status: "Diproses", time: "Baru saja" },
-    { id: "6", name: "Teing TeApal", item: "Madu Multiflora", status: "Selesai", time: "2 jam lalu" },
-    { id: "7", name: "Imam Faqih", item: "iPhone 15 Pro Max", status: "Pending", time: "5 jam lalu" },
-  ];
+  // D. Komposisi Tim [cite: 2025-09-29]
+  const teamStats = {
+    admin: allUsers.filter(u => u.role?.toLowerCase() === "admin").length,
+    staff: allUsers.filter(u => u.role?.toLowerCase() === "staff").length,
+    viewer: allUsers.filter(u => u.role?.toLowerCase() === "viewer").length,
+  };
 
-  if (prodLoading) return <div className="p-10 animate-pulse text-slate-400">Mensinkronisasi data manajerial...</div>;
+  if (prodLoading || userLoading) return (
+    <div className="h-[80vh] flex flex-col items-center justify-center gap-4 text-slate-400">
+      <Activity className="animate-bounce text-indigo-600" size={40} />
+      <p className="font-black uppercase tracking-widest text-[10px]">Membangun Command Center...</p>
+    </div>
+  );
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-700 p-2">
+    <div className="space-y-8 animate-in fade-in zoom-in-95 duration-700 p-2 font-sans text-left">
       
-      {/* HEADER: RINGKASAN EKSEKUTIF */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      {/* HEADER: COMMAND CENTER IDENTITY */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
         <div>
-          <h2 className="text-3xl font-black tracking-tight uppercase italic text-slate-900">
-            Manager <span className="text-indigo-600">Overview</span>
+          <div className="flex items-center gap-2 mb-2">
+            <ShieldCheck className="text-indigo-600" size={20} />
+            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Authorized Manager Access</span>
+          </div>
+          <h2 className="text-4xl font-black tracking-tighter uppercase italic text-slate-900 leading-none">
+            Strategic <span className="text-indigo-600">Console</span>
           </h2>
-          <p className="text-muted-foreground text-sm font-medium">
-            Selamat bekerja kembali, <span className="text-slate-900 font-bold">{user?.name || "Manager"}</span>. Berikut ringkasan sistem hari ini.
+          <p className="text-slate-500 text-sm mt-3 font-medium">
+            Halo <span className="text-slate-900 font-bold">{user?.name}</span>, integritas sistem TechStore terpantau <span className="text-emerald-600 font-bold italic">Optimal</span>.
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" className="rounded-xl border-slate-200" onClick={() => navigate("/manager/reports")}>
-            <BarChart3 className="mr-2 h-4 w-4" /> Laporan Detail
+        <div className="flex gap-3">
+          <Button variant="outline" className="rounded-2xl border-slate-200 h-12 px-6 font-bold" onClick={() => navigate("/manager/reports")}>
+            <BarChart3 className="mr-2 h-4 w-4 text-indigo-600" /> Analytics
           </Button>
-          <Button className="rounded-xl bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100">
-            Export Dashboard
+          <Button className="rounded-2xl bg-slate-900 hover:bg-indigo-600 h-12 px-6 shadow-xl shadow-slate-200 transition-all">
+            System Audit
           </Button>
         </div>
       </div>
 
-      {/* KPI GRID: DATA REAL DARI MOCK API */}
+      {/* KPI GRID: HIGH-LEVEL METRICS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <QuickStatCard 
-          title="Total Nilai Inventaris" 
+          title="Asset Value" 
           value={`Rp ${totalValue.toLocaleString('id-ID')}`} 
           icon={<TrendingUp size={18} className="text-emerald-500" />}
-          subText="Estimasi nilai aset saat ini"
+          subText="Total nilai kapitalisasi produk"
         />
         <QuickStatCard 
-          title="Volume Produk" 
-          value={products.length} 
-          icon={<Package size={18} className="text-blue-500" />}
-          subText={`${categories.length} Kategori aktif`}
+          title="Customer Satisfaction" 
+          value={`${avgStoreRating} / 5.0`} 
+          icon={<Star size={18} className="text-amber-500" fill="currentColor" />}
+          subText="Rata-rata rating katalog"
         />
         <QuickStatCard 
-          title="Stok Kosong" 
+          title="Inventory Alert" 
           value={outOfStock} 
           icon={<AlertOctagon size={18} className="text-red-500" />}
-          subText="Butuh pengadaan segera"
+          subText="Produk kehabisan stok"
           isAlert={outOfStock > 0}
         />
         <QuickStatCard 
-          title="Status Akun" 
-          value="Verified" 
-          icon={<Users size={18} className="text-indigo-500" />}
-          subText={`Role: ${user?.role || "Manager"}`}
+          title="Active Users" 
+          value={allUsers.length} 
+          icon={<Users size={18} className="text-blue-500" />}
+          subText="Total akun terdaftar di sistem"
         />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* LOG AKTIVITAS (Audit Trail) */}
-        <Card className="lg:col-span-2 rounded-[2rem] border-slate-200/60 shadow-sm overflow-hidden">
-          <CardHeader className="bg-slate-50/50 border-b">
+        {/* OPERATIONAL FEED: REAL DATA FROM API */}
+        <Card className="lg:col-span-2 rounded-[3rem] border-none shadow-2xl shadow-slate-100 overflow-hidden bg-white">
+          <CardHeader className="bg-slate-50/50 border-b p-8">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <History size={20} className="text-indigo-600" />
-                <CardTitle className="text-sm font-black uppercase tracking-widest">Aktivitas Transaksi</CardTitle>
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-indigo-600 rounded-lg text-white">
+                  <History size={20} />
+                </div>
+                <div>
+                  <CardTitle className="text-lg font-black uppercase tracking-tight">Live Order Feed</CardTitle>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Pantauan Logistik Terkini</p>
+                </div>
               </div>
-              <Badge variant="outline" className="bg-white">Real-time</Badge>
+              <Badge variant="outline" className="bg-emerald-50 text-emerald-600 border-emerald-100 font-black animate-pulse">LIVE SINKRON</Badge>
             </div>
           </CardHeader>
           <CardContent className="p-0">
-            <ScrollArea className="h-[350px]">
-              <div className="divide-y divide-slate-100">
-                {recentOrders.map((order) => (
-                  <div key={order.id} className="p-5 flex items-center justify-between hover:bg-slate-50/80 transition-all">
-                    <div className="flex items-center gap-4">
-                      <Avatar className="h-10 w-10 border-2 border-white shadow-sm">
-                        <AvatarFallback className="bg-indigo-100 text-indigo-700 font-bold text-xs">
-                          {order.name.substring(0, 2).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="text-sm font-bold text-slate-800">{order.name}</p>
-                        <p className="text-xs text-slate-500">Membeli: <span className="font-semibold text-slate-700">{order.item}</span></p>
+            <ScrollArea className="h-[400px]">
+              {activeOrders.length === 0 ? (
+                <div className="p-20 text-center text-slate-400 italic">Tidak ada aktivitas pesanan saat ini.</div>
+              ) : (
+                <div className="divide-y divide-slate-50">
+                  {activeOrders.map((order) => (
+                    <div key={order.id} className="p-6 flex items-center justify-between hover:bg-indigo-50/30 transition-all cursor-default group">
+                      <div className="flex items-center gap-5">
+                        <Avatar className="h-12 w-12 border-2 border-white shadow-md group-hover:scale-110 transition-transform">
+                          <AvatarFallback className="bg-slate-900 text-white font-black text-xs">
+                            {order.name?.substring(0, 2).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="text-sm font-black text-slate-800 uppercase italic tracking-tight">{order.name}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <ShoppingCart size={12} className="text-indigo-500" />
+                            <p className="text-xs text-slate-500 font-medium">{order.orderProduct}</p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <Badge className={`text-[9px] font-black uppercase rounded-full px-3 ${
+                          order.orderStatus?.includes("Selesai") ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
+                        }`}>
+                          {order.orderStatus}
+                        </Badge>
+                        <p className="text-[9px] text-slate-400 mt-2 font-bold uppercase tracking-tighter">
+                          {new Date(order.orderDate).toLocaleDateString('id-ID')}
+                        </p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <Badge className={`text-[10px] font-black uppercase ${
-                        order.status === "Diproses" ? "bg-amber-100 text-amber-700 border-amber-200" : "bg-emerald-100 text-emerald-700 border-emerald-200"
-                      }`}>
-                        {order.status}
-                      </Badge>
-                      <p className="text-[10px] text-slate-400 mt-1 font-medium">{order.time}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </ScrollArea>
           </CardContent>
         </Card>
 
-        {/* QUICK ACTIONS & SYSTEM STATUS */}
+        {/* TEAM COMPOSITION & QUICK CONTROL */}
         <div className="space-y-6">
-          <Card className="rounded-[2rem] bg-slate-900 text-white border-none shadow-xl overflow-hidden relative">
-            <div className="absolute top-0 right-0 p-8 opacity-10">
-              <ShoppingCart size={80} />
+          <Card className="rounded-[2.5rem] bg-slate-900 text-white border-none shadow-2xl p-8 relative overflow-hidden">
+            <div className="relative z-10">
+              <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400 mb-6">Struktur Otoritas</h3>
+              <div className="space-y-5">
+                <TeamRow label="Administrator" count={teamStats.admin} color="bg-rose-500" />
+                <TeamRow label="Staff Operational" count={teamStats.staff} color="bg-blue-500" />
+                <TeamRow label="Customer (Viewer)" count={teamStats.viewer} color="bg-slate-500" />
+              </div>
+              <Separator className="my-8 bg-white/10" />
+              <div className="grid grid-cols-2 gap-3">
+                <ControlBtn label="Users" onClick={() => navigate("/admin/users")} />
+                <ControlBtn label="Stock" onClick={() => navigate("/admin")} />
+              </div>
             </div>
-            <CardHeader>
-              <CardTitle className="text-xs font-black uppercase tracking-[0.2em] text-indigo-400">Kendali Sistem</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 relative z-10">
-              <Button 
-                variant="ghost" 
-                className="w-full justify-between hover:bg-white/10 text-white rounded-xl border border-white/10"
-                onClick={() => navigate("/admin/users")}
-              >
-                Manajemen Tim <ArrowUpRight size={16} />
-              </Button>
-              <Button 
-                variant="ghost" 
-                className="w-full justify-between hover:bg-white/10 text-white rounded-xl border border-white/10"
-                onClick={() => navigate("/admin")}
-              >
-                Monitor Inventaris <ArrowUpRight size={16} />
-              </Button>
-            </CardContent>
           </Card>
 
-          <Card className="rounded-[2rem] border-slate-200 shadow-sm bg-indigo-50/30 border-dashed">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-[10px] font-black uppercase text-indigo-600">Tips Manajerial</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-xs leading-relaxed text-slate-600 font-medium">
-                Ada <span className="font-bold text-red-600">{outOfStock} produk</span> yang tidak tersedia. Pastikan tim logistik segera memperbarui data vendor.
+          <Card className="rounded-[2.5rem] border-2 border-indigo-100 shadow-sm bg-white p-8 border-dashed">
+            <div className="flex items-center gap-2 mb-4">
+              <BarChart3 size={18} className="text-indigo-600" />
+              <h3 className="text-xs font-black uppercase tracking-widest">Inventory Health</h3>
+            </div>
+            <div className="space-y-4">
+              <div className="flex justify-between text-[10px] font-black uppercase">
+                <span className="text-slate-400">Available Ratio</span>
+                <span className="text-indigo-600">{((products.length - outOfStock) / products.length * 100).toFixed(0)}%</span>
+              </div>
+              <Progress value={((products.length - outOfStock) / products.length * 100)} className="h-2 bg-slate-100" />
+              <p className="text-[10px] leading-relaxed text-slate-500 font-medium italic">
+                Sistem mendeteksi <span className="text-indigo-600 font-bold">{products.length - outOfStock} produk siap jual</span>. Pastikan restock kategori populer.
               </p>
-            </CardContent>
+            </div>
           </Card>
         </div>
       </div>
@@ -185,24 +232,49 @@ export default function ManagerDashboard() {
   );
 }
 
-// Komponen Reusable: QuickStatCard
+// --- SUB-KOMPONEN UNTUK KEBERSIHAN KODE ---
+
 function QuickStatCard({ title, value, icon, subText, isAlert }) {
   return (
-    <Card className={`rounded-[1.8rem] border-slate-200/60 shadow-sm overflow-hidden transition-all hover:shadow-md ${isAlert ? 'border-red-200 bg-red-50/20' : ''}`}>
+    <Card className={`rounded-[2rem] border-slate-200/60 shadow-sm overflow-hidden transition-all hover:-translate-y-1 hover:shadow-xl bg-white ${isAlert ? 'border-red-200 ring-1 ring-red-100' : ''}`}>
       <CardContent className="p-6">
-        <div className="flex justify-between items-start mb-4">
-          <div className="p-2.5 bg-white rounded-xl shadow-sm border border-slate-100 text-slate-600">
+        <div className="flex justify-between items-start mb-6 text-left">
+          <div className="p-3 bg-slate-50 rounded-2xl text-slate-600 group-hover:bg-indigo-600 transition-colors">
             {icon}
           </div>
-          <Badge variant="outline" className="text-[9px] font-black border-slate-200">2026</Badge>
+          <Badge variant="outline" className="text-[8px] font-black border-slate-100 tracking-widest uppercase">Metrics 2026</Badge>
         </div>
-        <div>
-          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">{title}</p>
-          <h4 className="text-xl font-black text-slate-900 truncate">{value}</h4>
-          <Separator className="my-2" />
-          <p className="text-[10px] text-slate-500 font-medium italic">{subText}</p>
+        <div className="text-left">
+          <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 mb-1">{title}</p>
+          <h4 className="text-2xl font-black text-slate-900 tracking-tighter">{value}</h4>
+          <p className="text-[10px] text-slate-500 font-medium italic mt-2">{subText}</p>
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function TeamRow({ label, count, color }) {
+  return (
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-3">
+        <div className={`w-2 h-2 rounded-full ${color}`} />
+        <span className="text-xs font-bold text-slate-300">{label}</span>
+      </div>
+      <span className="text-xs font-black">{count}</span>
+    </div>
+  );
+}
+
+function ControlBtn({ label, onClick }) {
+  return (
+    <Button 
+      variant="ghost" 
+      size="sm"
+      className="w-full justify-center bg-white/5 hover:bg-white/10 text-white rounded-xl text-[10px] font-black uppercase tracking-widest border border-white/10"
+      onClick={onClick}
+    >
+      {label}
+    </Button>
   );
 }

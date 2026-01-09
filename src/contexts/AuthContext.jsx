@@ -13,7 +13,7 @@ export const AuthProvider = ({ children }) => {
 
   // 1. CEK SESI (Mengenali User saat refresh tab) [cite: 2025-12-26]
   useEffect(() => {
-    const checkSession = async () => {
+    const checkSession = () => {
       try {
         const savedUser = sessionStorage.getItem("admin_user");
         if (savedUser) {
@@ -36,7 +36,6 @@ export const AuthProvider = ({ children }) => {
       const result = await signInWithPopup(auth, googleProvider);
       const googleUser = result.user;
 
-      // Cek apakah email ini sudah ada di MockAPI [cite: 2025-12-26]
       const response = await fetch(AUTH_API);
       const users = await response.json();
       
@@ -47,9 +46,9 @@ export const AuthProvider = ({ children }) => {
       if (!foundUser) {
         const newUser = {
           username: googleUser.email,
-          password: "google-auth-user", // Password dummy untuk bypass login manual
+          password: "google-auth-user",
           name: googleUser.displayName,
-          role: "viewer", // Default role untuk pendaftar baru via Google [cite: 2025-11-02]
+          role: "viewer", // Default role pendaftar baru [cite: 2025-11-02]
           orderStatus: "Belum Ada Pesanan",
           adminMessage: "Selamat datang! Akun Anda diverifikasi via Google.",
           orderProduct: "",
@@ -64,7 +63,6 @@ export const AuthProvider = ({ children }) => {
         foundUser = await createRes.json();
       }
 
-      // Finalisasi State & Session [cite: 2025-12-13]
       setUser(foundUser);
       sessionStorage.setItem("admin_user", JSON.stringify(foundUser));
       return { success: true };
@@ -74,7 +72,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // 3. FUNGSI LOGIN MANUAL (Username/Password) [cite: 2025-09-29]
+  // 3. FUNGSI LOGIN MANUAL [cite: 2025-09-29]
   const login = async (username, password) => {
     try {
       const response = await fetch(AUTH_API);
@@ -86,13 +84,8 @@ export const AuthProvider = ({ children }) => {
       );
 
       if (foundUser) {
-        const userData = { 
-          ...foundUser,
-          role: foundUser.role.toLowerCase() // Normalisasi teks role [cite: 2025-09-29]
-        };
-
-        setUser(userData); 
-        sessionStorage.setItem("admin_user", JSON.stringify(userData));
+        setUser(foundUser); 
+        sessionStorage.setItem("admin_user", JSON.stringify(foundUser));
         return { success: true };
       } else {
         return { success: false, message: "Username atau Password salah!" };
@@ -102,7 +95,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // 4. UPDATE DATA PESANAN (Digunakan Admin & Staff) [cite: 2025-11-02]
+  // 4. UPDATE DATA PESANAN (Digunakan Admin/Staff di Dashboard) [cite: 2025-11-02]
   const updateUserOrder = async (userId, updateData) => {
     try {
       const response = await fetch(`${AUTH_API}/${userId}`, {
@@ -115,14 +108,13 @@ export const AuthProvider = ({ children }) => {
       });
 
       if (!response.ok) throw new Error("Gagal update di server");
-      
-      const updatedData = await response.json();
+      const updatedDataFromServer = await response.json();
 
-      // Jika yang diupdate adalah diri sendiri, sinkronkan state lokal [cite: 2025-12-26]
+      // Jika yang diupdate adalah diri sendiri, sinkronkan state [cite: 2025-12-26]
       if (user?.id === userId) {
-        const newLocalData = { ...user, ...updatedData };
-        setUser(newLocalData);
-        sessionStorage.setItem("admin_user", JSON.stringify(newLocalData));
+        const mergedData = { ...user, ...updatedDataFromServer };
+        setUser(mergedData);
+        sessionStorage.setItem("admin_user", JSON.stringify(mergedData));
       }
 
       return { success: true };
@@ -131,16 +123,16 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // 5. REFRESH DATA USER (Khusus Viewer untuk cek status pesanan terbaru) [cite: 2025-09-29]
+  // 5. REFRESH DATA USER (Khusus Viewer untuk cek status terbaru) [cite: 2025-09-29]
   const refreshUserData = async () => {
     if (!user) return;
     try {
       const response = await fetch(`${AUTH_API}/${user.id}`);
       if (response.ok) {
         const latestData = await response.json();
-        const updatedUser = { ...user, ...latestData };
-        setUser(updatedUser);
-        sessionStorage.setItem("admin_user", JSON.stringify(updatedUser));
+        // Update state dan storage agar UI "Pelacakan Pesanan" terupdate [cite: 2025-12-26]
+        setUser(latestData);
+        sessionStorage.setItem("admin_user", JSON.stringify(latestData));
       }
     } catch (error) {
       console.error("Gagal refresh data:", error);
@@ -153,7 +145,7 @@ export const AuthProvider = ({ children }) => {
     sessionStorage.removeItem("admin_user");
   };
 
-  // VALUE YANG DIEKSPOS KE SELURUH APLIKASI [cite: 2025-12-26]
+  // VALUE YANG DIEKSPOS DENGAN NORMALISASI ROLE (Case Insensitive) [cite: 2025-09-29, 2025-12-26]
   const value = {
     user,
     login,
@@ -163,11 +155,11 @@ export const AuthProvider = ({ children }) => {
     updateUserOrder, 
     refreshUserData, 
     isAuthenticated: !!user,
-    // PENAMBAHAN ROLE MANAGER DI SINI [cite: 2025-09-29, 2025-12-26]
-    isAdmin: user?.role === "admin",
-    isStaff: user?.role === "staff",
-    isManager: user?.role === "manager", // Role Baru: Manager
-    isViewer: user?.role === "viewer"
+    // Menggunakan toLowerCase agar pengecekan role lebih aman [cite: 2025-09-29]
+    isAdmin: user?.role?.toLowerCase() === "admin",
+    isStaff: user?.role?.toLowerCase() === "staff",
+    isManager: user?.role?.toLowerCase() === "manager",
+    isViewer: user?.role?.toLowerCase() === "viewer"
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

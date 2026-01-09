@@ -11,6 +11,9 @@ import UserManagement from "./pages/admin/UserManagement";
 import OrderManagement from "./pages/admin/OrderManagement"; 
 import ProtectedRoute from "./components/ProtectedRoute"; 
 
+// IMPORT HALAMAN BARU UNTUK 404 [cite: 2025-12-30]
+import NotFound from "./pages/public/NotFound"; 
+
 // IMPORT HALAMAN MANAGER
 import ManagerDashboard from "./pages/manager/ManagerDashboard";
 import AnalyticsReport from "./pages/manager/AnalyticsReport";
@@ -79,7 +82,7 @@ function AdminInventoryView({ products, loading, user, onAdd, onDelete, onUpdate
           products={filteredProducts} 
           onDelete={onDelete} 
           onUpdate={onUpdate}
-          onBulkDelete={onBulkDelete} // OPER KE TABLE
+          onBulkDelete={onBulkDelete} 
         />
       )}
     </div>
@@ -91,9 +94,8 @@ function AdminInventoryView({ products, loading, user, onAdd, onDelete, onUpdate
 // =========================================================
 function App() {
   const { products, loading: productsLoading, error, deleteProduct, addProduct, updateProduct } = useProducts();
-  const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
 
-  // 1. LOGIKA PROTEKSI AKSES (REUSABLE)
   const verifyAdminAction = () => {
     if (user?.role !== "admin") {
       alert("Otoritas Ditolak: Hanya Admin Utama yang dapat menghapus data.");
@@ -102,7 +104,6 @@ function App() {
     return true;
   };
 
-  // 2. HANDLER HAPUS SATUAN
   const handleDelete = async (id) => {
     if (!verifyAdminAction()) return;
     if (window.confirm("Hapus produk ini dari database?")) {
@@ -111,15 +112,12 @@ function App() {
     }
   };
 
-  // 3. HANDLER HAPUS MASSAL (BULK DELETE)
   const handleBulkDelete = async (selectedIds) => {
     if (!verifyAdminAction()) return;
     if (selectedIds.length === 0) return;
 
     if (window.confirm(`Konfirmasi: Hapus ${selectedIds.length} produk sekaligus?`)) {
-      // Menggunakan Promise.all untuk eksekusi paralel agar cepat
       const results = await Promise.all(selectedIds.map(id => deleteProduct(id)));
-      
       const failed = results.filter(r => !r.success);
       if (failed.length > 0) {
         alert(`Selesai dengan catatan: ${failed.length} item gagal dihapus.`);
@@ -139,6 +137,7 @@ function App() {
     <CartProvider>
       <Router>
         <Routes>
+          {/* 1. SISI PUBLIK */}
           <Route element={<PublicLayout />}>
             <Route path="/" element={<KatalogView products={products} loading={productsLoading} error={error} />} />
             <Route path="/detail/:id" element={<ProductDetail />} />
@@ -146,7 +145,7 @@ function App() {
 
           <Route path="/login" element={<Login />} />
 
-          {/* JALUR ADMIN & STAFF */}
+          {/* 2. JALUR ADMIN & STAFF */}
           <Route 
             path="/admin" 
             element={
@@ -163,7 +162,7 @@ function App() {
                 onAdd={addProduct} 
                 onDelete={handleDelete} 
                 onUpdate={updateProduct}
-                onBulkDelete={handleBulkDelete} // PASS KE VIEW
+                onBulkDelete={handleBulkDelete} 
               />
             } />
             <Route path="orders" element={<OrderManagement />} />
@@ -174,7 +173,7 @@ function App() {
             } />
           </Route>
 
-          {/* JALUR MANAGER */}
+          {/* 3. JALUR MANAGER */}
           <Route 
             path="/manager" 
             element={
@@ -187,7 +186,9 @@ function App() {
             <Route path="reports" element={<AnalyticsReport />} />
           </Route>
 
-          <Route path="*" element={<Navigate to="/" replace />} />
+          {/* 4. CATCH-ALL ROUTE (404 NOT FOUND) [cite: 2025-12-30] */}
+          {/* Letakkan rute ini di paling bawah agar tidak memblokir rute lain */}
+          <Route path="*" element={<NotFound />} /> 
         </Routes>
       </Router>
     </CartProvider>
