@@ -1,14 +1,19 @@
 import { HashRouter as Router, Routes, Route, Navigate, useOutletContext } from "react-router-dom";
 import PublicLayout from "./components/public/PublicLayout";
 import AdminLayout from "./components/admin/AdminLayout";
+import ManagerLayout from "./components/manager/ManagerLayout"; 
 import ProductTable from "./components/admin/ProductTable"; 
 import ProductDetail from "./pages/public/ProductDetail"; 
 import AddProductModal from "./components/admin/AddProductModal";
 import Login from "./pages/admin/Login"; 
 import ProductCard from "./components/public/ProductCard";
 import UserManagement from "./pages/admin/UserManagement"; 
-import OrderManagement from "./pages/admin/OrderManagement"; // IMPORT HALAMAN BARU
+import OrderManagement from "./pages/admin/OrderManagement"; 
 import ProtectedRoute from "./components/ProtectedRoute"; 
+
+// IMPORT HALAMAN MANAGER
+import ManagerDashboard from "./pages/manager/ManagerDashboard";
+import AnalyticsReport from "./pages/manager/AnalyticsReport";
 
 // PROVIDER & HOOKS
 import { CartProvider } from "./contexts/CartContext"; 
@@ -17,7 +22,7 @@ import { useAuth } from "./contexts/AuthContext";
 import { useFilteredProducts } from "./hooks/useFilteredProducts";
 
 // =========================================================
-// 1. KOMPONEN VIEW: SISI PUBLIK (KATALOG)
+// KOMPONEN VIEW: SISI PUBLIK
 // =========================================================
 function KatalogView({ products, loading, error }) {
   const { searchQuery, selectedCategory } = useOutletContext();
@@ -32,13 +37,12 @@ function KatalogView({ products, loading, error }) {
         <h2 className="text-4xl font-extrabold tracking-tight text-slate-900 uppercase">Katalog Produk</h2>
         <p className="text-slate-500 mt-2 italic">Koleksi perangkat audio premium pilihan kami.</p>
       </div>
-
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 px-4">
         {filteredProducts.length > 0 ? (
           filteredProducts.map((item) => <ProductCard key={item.id} product={item} />)
         ) : (
           <div className="col-span-full text-center py-20 text-slate-400 font-medium">
-            Produk "{searchQuery}" tidak ditemukan di kategori {selectedCategory}.
+            Produk "{searchQuery}" tidak ditemukan.
           </div>
         )}
       </div>
@@ -47,7 +51,7 @@ function KatalogView({ products, loading, error }) {
 }
 
 // =========================================================
-// 2. KOMPONEN VIEW: SISI ADMIN (INVENTARIS)
+// KOMPONEN VIEW: SISI ADMIN/STAFF
 // =========================================================
 function AdminInventoryView({ products, loading, user, onAdd, onDelete, onUpdate }) {
   const { searchQuery, selectedCategory } = useOutletContext();
@@ -58,32 +62,27 @@ function AdminInventoryView({ products, loading, user, onAdd, onDelete, onUpdate
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-2xl font-black text-slate-800 tracking-tight uppercase">Manajemen Inventory</h2>
-          <p className="text-sm text-slate-500 font-medium">
-            Operator Aktif: <span className="text-blue-600 font-black uppercase">{user?.username}</span>
+          <p className="text-sm text-slate-500 font-medium italic">
+            Operator: <span className="text-blue-600 font-black uppercase">{user?.username}</span>
           </p>
         </div>
         {(user?.role === "admin" || user?.role === "staff") && (
           <AddProductModal onAdd={onAdd} />
         )}
       </div>
-      
       {loading ? (
-        <div className="h-64 border-2 border-dashed rounded-xl flex items-center justify-center animate-pulse bg-slate-50 text-slate-400">
-          Sinkronisasi Data Inventaris...
+        <div className="h-64 border-2 border-dashed rounded-xl flex items-center justify-center animate-pulse bg-slate-50 text-slate-400 font-bold uppercase tracking-widest">
+          Sinkronisasi Inventaris...
         </div>
       ) : (
-        <ProductTable 
-          products={filteredProducts} 
-          onDelete={onDelete} 
-          onUpdate={onUpdate} 
-        />
+        <ProductTable products={filteredProducts} onDelete={onDelete} onUpdate={onUpdate} />
       )}
     </div>
   );
 }
 
 // =========================================================
-// 3. KOMPONEN UTAMA: APP (TRAFFIC CONTROLLER)
+// KOMPONEN UTAMA: APP
 // =========================================================
 function App() {
   const { products, loading: productsLoading, error, deleteProduct, addProduct, updateProduct } = useProducts();
@@ -94,19 +93,13 @@ function App() {
       alert("Otoritas Ditolak: Hanya Admin Utama yang dapat menghapus data.");
       return;
     }
-    if (window.confirm("Apakah Anda yakin ingin menghapus produk ini dari database?")) {
+    if (window.confirm("Hapus produk ini dari database?")) {
       const result = await deleteProduct(id);
-      if (!result.success) alert("Gagal menghapus: " + result.message);
+      if (!result.success) alert("Gagal: " + result.message);
     }
   };
 
-  if (authLoading) {
-    return (
-      <div className="h-screen flex items-center justify-center bg-slate-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
+  if (authLoading) return <div className="h-screen flex items-center justify-center bg-slate-50"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>;
 
   return (
     <CartProvider>
@@ -119,42 +112,46 @@ function App() {
           </Route>
 
           {/* ================= JALUR LOGIN ================= */}
-          <Route path="/login" element={isAuthenticated ? <Navigate to="/admin" replace /> : <Login />} />
+          <Route path="/login" element={<Login />} />
 
-          {/* ================= JALUR ADMIN (SINKRONISASI ROLE) ================= */}
+          {/* ================= JALUR ADMIN & STAFF (OPERASIONAL) ================= */}
+          {/* Manager tetap diizinkan masuk ke sini agar bisa mengawasi operasional */}
           <Route 
             path="/admin" 
             element={
-              <ProtectedRoute allowRoles={["admin", "staff"]}>
+              <ProtectedRoute allowRoles={["admin", "staff", "manager"]}>
                 <AdminLayout />
               </ProtectedRoute>
             }
           >
-            {/* 1. Dashboard Inventory: Admin & Staff [cite: 2025-11-02] */}
             <Route index element={
               <AdminInventoryView 
-                products={products} 
-                loading={productsLoading}
-                user={user}
-                onAdd={addProduct}
-                onDelete={handleDelete}
-                onUpdate={updateProduct}
+                products={products} loading={productsLoading} user={user}
+                onAdd={addProduct} onDelete={handleDelete} onUpdate={updateProduct}
               />
             } />
-
-            {/* 2. Manajemen Pesanan: Admin & Staff (Fitur Baru) [cite: 2025-09-29] */}
-            <Route path="orders" element={
-              <ProtectedRoute allowRoles={["admin", "staff"]}>
-                <OrderManagement />
-              </ProtectedRoute>
-            } />
-
-            {/* 3. Kelola Otoritas: Khusus Admin Utama [cite: 2025-11-02] */}
+            <Route path="orders" element={<OrderManagement />} />
+            
+            {/* KHUSUS ADMIN UTAMA: Manajemen User [cite: 2026-01-08] */}
             <Route path="users" element={
               <ProtectedRoute allowRoles={["admin"]}>
                 <UserManagement />
               </ProtectedRoute>
             } />
+          </Route>
+
+          {/* ================= JALUR MANAGER (STRATEGIS) ================= */}
+          {/* REVISI KRITIS: Hapus "admin" dari allowRoles agar jalur ini murni untuk Manager */}
+          <Route 
+            path="/manager" 
+            element={
+              <ProtectedRoute allowRoles={["manager"]}>
+                <ManagerLayout /> 
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<ManagerDashboard />} />
+            <Route path="reports" element={<AnalyticsReport />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />

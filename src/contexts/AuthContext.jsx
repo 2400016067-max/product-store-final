@@ -8,9 +8,10 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Endpoint MockAPI untuk manajemen user [cite: 2025-12-26]
   const AUTH_API = "https://694615d7ed253f51719d04d2.mockapi.io/users";
 
-  // 1. CEK SESI (Mengenali User saat refresh tab)
+  // 1. CEK SESI (Mengenali User saat refresh tab) [cite: 2025-12-26]
   useEffect(() => {
     const checkSession = async () => {
       try {
@@ -35,20 +36,20 @@ export const AuthProvider = ({ children }) => {
       const result = await signInWithPopup(auth, googleProvider);
       const googleUser = result.user;
 
-      // Cek apakah email ini sudah ada di MockAPI
+      // Cek apakah email ini sudah ada di MockAPI [cite: 2025-12-26]
       const response = await fetch(AUTH_API);
       const users = await response.json();
       
-      // Kita gunakan email Google sebagai 'username' unik [cite: 2025-09-29]
+      // Email Google digunakan sebagai 'username' unik [cite: 2025-09-29]
       let foundUser = users.find(u => u.username === googleUser.email);
 
-      // JIKA USER BARU: Daftarkan otomatis ke MockAPI [cite: 2025-09-29, 2025-11-02]
+      // JIKA USER BARU: Daftarkan otomatis sebagai 'viewer' [cite: 2025-11-02]
       if (!foundUser) {
         const newUser = {
           username: googleUser.email,
-          password: "google-auth-user", // Password dummy
+          password: "google-auth-user", // Password dummy untuk bypass login manual
           name: googleUser.displayName,
-          role: "viewer", // Otomatis menjadi viewer [cite: 2025-11-02]
+          role: "viewer", // Default role untuk pendaftar baru via Google [cite: 2025-11-02]
           orderStatus: "Belum Ada Pesanan",
           adminMessage: "Selamat datang! Akun Anda diverifikasi via Google.",
           orderProduct: "",
@@ -87,7 +88,7 @@ export const AuthProvider = ({ children }) => {
       if (foundUser) {
         const userData = { 
           ...foundUser,
-          role: foundUser.role.toLowerCase() // Normalisasi Role [cite: 2025-09-29]
+          role: foundUser.role.toLowerCase() // Normalisasi teks role [cite: 2025-09-29]
         };
 
         setUser(userData); 
@@ -101,7 +102,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // 4. UPDATE ORDER (ADMIN & STAFF) [cite: 2025-11-02]
+  // 4. UPDATE DATA PESANAN (Digunakan Admin & Staff) [cite: 2025-11-02]
   const updateUserOrder = async (userId, updateData) => {
     try {
       const response = await fetch(`${AUTH_API}/${userId}`, {
@@ -117,6 +118,7 @@ export const AuthProvider = ({ children }) => {
       
       const updatedData = await response.json();
 
+      // Jika yang diupdate adalah diri sendiri, sinkronkan state lokal [cite: 2025-12-26]
       if (user?.id === userId) {
         const newLocalData = { ...user, ...updatedData };
         setUser(newLocalData);
@@ -129,7 +131,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // 5. REFRESH DATA USER (VIEWER) [cite: 2025-09-29]
+  // 5. REFRESH DATA USER (Khusus Viewer untuk cek status pesanan terbaru) [cite: 2025-09-29]
   const refreshUserData = async () => {
     if (!user) return;
     try {
@@ -145,22 +147,26 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // 6. LOGOUT [cite: 2025-12-26]
   const logout = () => {
     setUser(null);
     sessionStorage.removeItem("admin_user");
   };
 
+  // VALUE YANG DIEKSPOS KE SELURUH APLIKASI [cite: 2025-12-26]
   const value = {
     user,
     login,
-    loginWithGoogle, // EKSPOS FUNGSI GOOGLE [cite: 2025-09-29]
+    loginWithGoogle,
     logout,
     loading,
     updateUserOrder, 
     refreshUserData, 
     isAuthenticated: !!user,
+    // PENAMBAHAN ROLE MANAGER DI SINI [cite: 2025-09-29, 2025-12-26]
     isAdmin: user?.role === "admin",
     isStaff: user?.role === "staff",
+    isManager: user?.role === "manager", // Role Baru: Manager
     isViewer: user?.role === "viewer"
   };
 

@@ -1,9 +1,8 @@
-import { useState, useRef, useEffect } from "react"; // 1. TAMBAHKAN useRef & useEffect
+import { useState, useRef, useEffect } from "react";
 import { Outlet, Link } from "react-router-dom";
 import { Input } from "@/components/ui/input"; 
 import { Button } from "@/components/ui/button"; 
-// 2. TAMBAHKAN "X" di lucide-react
-import { Search, LayoutDashboard, LogIn, UserCircle, LogOut, X } from "lucide-react"; 
+import { Search, LayoutDashboard, LogIn, UserCircle, LogOut, X, Briefcase } from "lucide-react"; 
 import { CATEGORIES } from "@/lib/constants"; 
 import { cn } from "@/lib/utils"; 
 
@@ -13,15 +12,17 @@ import CartModal from "./CartModal";
 import OrderDetailModal from "./OrderDetailModal"; 
 
 export default function PublicLayout() {
-  const { user, isAuthenticated, isAdmin, isStaff, logout } = useAuth();
+  // TAMBAHKAN isManager di sini [cite: 2025-12-26]
+  const { user, isAuthenticated, isAdmin, isStaff, isManager, logout } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("Semua");
   
-  // 3. STATE & REF BARU UNTUK SEARCH
   const [isOpen, setIsOpen] = useState(false);
   const searchInputRef = useRef(null);
 
-  // Otomatis fokus saat input terbuka
+  // LOGIKA DINAMIS: Tentukan jalur dashboard berdasarkan role
+  const dashboardPath = isManager ? "/manager" : "/admin";
+
   useEffect(() => {
     if (isOpen && searchInputRef.current) {
       searchInputRef.current.focus();
@@ -37,27 +38,27 @@ export default function PublicLayout() {
           <div className="flex flex-col py-4 gap-4">
             
             {/* BARIS UTAMA: LOGO, SEARCH (MODERN), & NAVIGASI */}
-<div className="flex justify-between items-center w-full">
-  <Link to="/" className="group flex flex-col items-start gap-0">
-    <h1 className="font-black text-2xl md:text-3xl tracking-tighter uppercase italic leading-none transition-colors">
-      <span className="text-blue-600">Product</span>
-      <span className="text-slate-900">Store</span>
-    </h1>
-    
-    {isAuthenticated && (
-      <div className="flex items-center gap-1.5 mt-1 animate-in fade-in duration-500">
-        <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
-        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-          Member: <span className="text-slate-900">{user?.name}</span>
-        </p>
-      </div>
-    )}
-  </Link>
+            <div className="flex justify-between items-center w-full">
+              <Link to="/" className="group flex flex-col items-start gap-0">
+                <h1 className="font-black text-2xl md:text-3xl tracking-tighter uppercase italic leading-none transition-colors">
+                  <span className="text-blue-600">Product</span>
+                  <span className="text-slate-900">Store</span>
+                </h1>
+                
+                {isAuthenticated && (
+                  <div className="flex items-center gap-1.5 mt-1 animate-in fade-in duration-500">
+                    <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                      Member: <span className="text-slate-900">{user?.name}</span>
+                    </p>
+                  </div>
+                )}
+              </Link>
 
               {/* ACTION CENTER */}
               <nav className="flex items-center gap-2 sm:gap-4">
                 
-                {/* 4. TOMBOL SEARCH BARU (EXPANDABLE) */}
+                {/* TOMBOL SEARCH (EXPANDABLE) */}
                 <div 
                   className={cn(
                     "relative flex items-center bg-slate-100 rounded-full transition-all duration-300 ease-in-out px-3 h-11",
@@ -95,13 +96,17 @@ export default function PublicLayout() {
 
                 {isAuthenticated ? (
                   <div className="flex items-center gap-2 sm:gap-3">
-                    {(isAdmin || isStaff) && (
+                    {/* REVISI: Tambahkan isManager dan gunakan dashboardPath dinamis */}
+                    {(isAdmin || isStaff || isManager) && (
                       <Link 
-                        to="/admin" 
-                        className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 hover:-translate-y-0.5 transition-all shadow-lg"
+                        to={dashboardPath} 
+                        className={cn(
+                          "flex items-center gap-2 px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:-translate-y-0.5 transition-all shadow-lg",
+                          isManager ? "bg-indigo-600 text-white hover:bg-indigo-700" : "bg-slate-900 text-white hover:bg-blue-600"
+                        )}
                       >
-                        <LayoutDashboard size={14} />
-                        <span className="hidden sm:block">Dashboard</span>
+                        {isManager ? <Briefcase size={14} /> : <LayoutDashboard size={14} />}
+                        <span className="hidden sm:block">{isManager ? "Manager Suite" : "Dashboard"}</span>
                       </Link>
                     )}
                     <OrderDetailModal />
@@ -151,7 +156,7 @@ export default function PublicLayout() {
         </div>
       </header>
 
-      {/* ================= MAIN CONTENT & FOOTER (TIDAK BERUBAH) ================= */}
+      {/* ================= MAIN CONTENT ================= */}
       <main className="flex-1 w-full bg-white">
         <div className="container mx-auto px-4 md:px-6 py-10 md:py-16">
           <Outlet context={{ searchQuery, selectedCategory }} /> 
@@ -159,7 +164,9 @@ export default function PublicLayout() {
       </main>
 
       <footer className="bg-slate-900 text-white py-16 px-6 rounded-t-[3rem]">
-        {/* ... (isi footer sama seperti sebelumnya) */}
+        <div className="container mx-auto text-center">
+           <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">© 2026 TechStore Systems Group</p>
+        </div>
       </footer>
     </div>
   );

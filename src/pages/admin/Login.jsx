@@ -16,25 +16,29 @@ export default function Login() {
   const [isLocked, setIsLocked] = useState(false);          
   const [timeLeft, setTimeLeft] = useState(0);              
   
-  // STATE BARU: Untuk Show/Hide Password
   const [showPassword, setShowPassword] = useState(false);
 
-  // Ambil login manual DAN loginWithGoogle dari Context [cite: 2025-09-29]
   const { login, loginWithGoogle, isAuthenticated, user } = useAuth(); 
   const navigate = useNavigate();
   const location = useLocation(); 
 
-  // --- 1. WATCHDOG REDIRECT (Berlaku untuk Manual & Google) [cite: 2025-12-13] ---
+  // --- 1. WATCHDOG REDIRECT (Logika Navigasi Berbasis Role) ---
   useEffect(() => {
     if (isAuthenticated && user) {
+      // Cek apakah ada tujuan redirect sebelumnya (dari ProtectedRoute)
       const from = location.state?.from?.pathname;
+      
       if (from) {
         navigate(from, { replace: true });
       } else {
-        if (user.role === "viewer") {
-          navigate("/", { replace: true });
-        } else {
+        // Logika Pengalihan Berdasarkan Role [cite: 2026-01-08]
+        if (user.role === "admin" || user.role === "staff") {
           navigate("/admin", { replace: true });
+        } else if (user.role === "manager") {
+          navigate("/manager", { replace: true });
+        } else {
+          // Default untuk viewer atau role lain
+          navigate("/", { replace: true });
         }
       }
     }
@@ -55,7 +59,7 @@ export default function Login() {
     return () => clearInterval(timer);
   }, [isLocked, timeLeft]);
 
-  // --- 3. HANDLE LOGIN GOOGLE [cite: 2025-09-29] ---
+  // --- 3. HANDLE LOGIN GOOGLE ---
   const handleGoogleLogin = async () => {
     if (isLocked || localLoading || isSuccess) return;
     setErrorMsg("");
@@ -136,7 +140,7 @@ export default function Login() {
           </div>
         )}
 
-        {/* TOMBOL LOGIN GOOGLE [cite: 2025-09-29, 2025-12-13] */}
+        {/* TOMBOL LOGIN GOOGLE */}
         <Button
           type="button"
           onClick={handleGoogleLogin}
@@ -153,7 +157,6 @@ export default function Login() {
           Masuk dengan Google
         </Button>
 
-        {/* PEMBATAS VISUAL [cite: 2025-09-29] */}
         <div className="relative my-8">
           <div className="absolute inset-0 flex items-center">
             <span className="w-full border-t border-slate-100"></span>
@@ -163,7 +166,6 @@ export default function Login() {
           </div>
         </div>
 
-        {/* FORM LOGIN MANUAL */}
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
             <label className="text-[11px] uppercase tracking-widest font-black text-slate-400 ml-1">Username</label>
@@ -178,7 +180,6 @@ export default function Login() {
             />
           </div>
 
-          {/* --- BAGIAN PASSWORD (DENGAN TOGGLE EYE ICON) --- */}
           <div className="space-y-2">
             <label className="text-[11px] uppercase tracking-widest font-black text-slate-400 ml-1">Password</label>
             <div className="relative">
@@ -189,7 +190,6 @@ export default function Login() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                // Tambahkan pr-12 supaya teks tidak nabrak ikon mata
                 className="h-14 bg-slate-50 border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 transition-all text-base px-5 pr-12 shadow-inner"
               />
               
