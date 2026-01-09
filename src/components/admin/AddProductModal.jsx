@@ -9,16 +9,16 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { PlusCircle } from "lucide-react";
-// 1. IMPORT KONSTANTA KATEGORI
+import { PlusCircle, Loader2 } from "lucide-react"; // Tambahkan Loader2
 import { CATEGORIES } from "@/lib/constants";
 
 export default function AddProductModal({ onAdd }) {
   const [open, setOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false); // State loading baru
   
   const [formData, setFormData] = useState({
     name: "", 
-    category: "", // Akan diisi melalui select
+    category: "", 
     price: "", 
     image: "", 
     description: "",
@@ -27,6 +27,7 @@ export default function AddProductModal({ onAdd }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsSubmitting(true); // Mulai loading
     
     const payload = {
       ...formData,
@@ -34,18 +35,22 @@ export default function AddProductModal({ onAdd }) {
       isAvailable: formData.isAvailable === true || formData.isAvailable === "true"
     };
 
-    const result = await onAdd(payload);
-    
-    if (result.success) {
-      setOpen(false);
-      setFormData({ 
-        name: "", 
-        category: "", 
-        price: "", 
-        image: "", 
-        description: "", 
-        isAvailable: true 
-      });
+    try {
+      const result = await onAdd(payload);
+      
+      if (result.success) {
+        setOpen(false);
+        setFormData({ 
+          name: "", 
+          category: "", 
+          price: "", 
+          image: "", 
+          description: "", 
+          isAvailable: true 
+        });
+      }
+    } finally {
+      setIsSubmitting(false); // Selesai loading (berhasil atau gagal)
     }
   };
 
@@ -75,18 +80,20 @@ export default function AddProductModal({ onAdd }) {
               value={formData.name} 
               onChange={(e) => setFormData({...formData, name: e.target.value})} 
               required 
+              disabled={isSubmitting}
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            {/* 2. PERUBAHAN: DARI INPUT KE SELECT KATEGORI */}
+            {/* Kategori */}
             <div className="space-y-1">
               <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Kategori</label>
               <select
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50"
                 value={formData.category}
                 onChange={(e) => setFormData({...formData, category: e.target.value})}
                 required
+                disabled={isSubmitting}
               >
                 <option value="" disabled>Pilih Kategori</option>
                 {CATEGORIES.map((cat) => (
@@ -106,6 +113,7 @@ export default function AddProductModal({ onAdd }) {
                 value={formData.price} 
                 onChange={(e) => setFormData({...formData, price: e.target.value})} 
                 required 
+                disabled={isSubmitting}
               />
             </div>
           </div>
@@ -114,9 +122,10 @@ export default function AddProductModal({ onAdd }) {
           <div className="space-y-1">
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Status Stok</label>
             <select
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50"
               value={formData.isAvailable}
               onChange={(e) => setFormData({...formData, isAvailable: e.target.value === "true"})}
+              disabled={isSubmitting}
             >
               <option value="true">✅ Tersedia (Ready Stock)</option>
               <option value="false">❌ Habis (Out of Stock)</option>
@@ -131,6 +140,7 @@ export default function AddProductModal({ onAdd }) {
               value={formData.image} 
               onChange={(e) => setFormData({...formData, image: e.target.value})} 
               required 
+              disabled={isSubmitting}
             />
           </div>
 
@@ -141,11 +151,23 @@ export default function AddProductModal({ onAdd }) {
               placeholder="Jelaskan fitur utama produk..." 
               value={formData.description} 
               onChange={(e) => setFormData({...formData, description: e.target.value})} 
+              disabled={isSubmitting}
             />
           </div>
 
-          <Button type="submit" className="w-full bg-slate-900 hover:bg-black text-white font-bold mt-4 transition-all active:scale-95 shadow-xl">
-            SIMPAN KE DATABASE
+          <Button 
+            type="submit" 
+            disabled={isSubmitting} // Disable tombol saat loading
+            className="w-full bg-slate-900 hover:bg-black text-white font-bold mt-4 transition-all active:scale-95 shadow-xl"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                MENYIMPAN...
+              </>
+            ) : (
+              "SIMPAN KE DATABASE"
+            )}
           </Button>
         </form>
       </DialogContent>

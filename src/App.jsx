@@ -22,7 +22,7 @@ import { useAuth } from "./contexts/AuthContext";
 import { useFilteredProducts } from "./hooks/useFilteredProducts";
 
 // =========================================================
-// KOMPONEN VIEW: SISI PUBLIK
+// KOMPONEN VIEW: SISI PUBLIK (CLEAN & MODULAR)
 // =========================================================
 function KatalogView({ products, loading, error }) {
   const { searchQuery, selectedCategory } = useOutletContext();
@@ -38,9 +38,8 @@ function KatalogView({ products, loading, error }) {
         <p className="text-slate-500 mt-2 italic">Koleksi perangkat audio premium pilihan kami.</p>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 px-4">
-        {filteredProducts.length > 0 ? (
-          filteredProducts.map((item) => <ProductCard key={item.id} product={item} />)
-        ) : (
+        {filteredProducts.map((item) => <ProductCard key={item.id} product={item} />)}
+        {filteredProducts.length === 0 && (
           <div className="col-span-full text-center py-20 text-slate-400 font-medium">
             Produk "{searchQuery}" tidak ditemukan.
           </div>
@@ -53,7 +52,7 @@ function KatalogView({ products, loading, error }) {
 // =========================================================
 // KOMPONEN VIEW: SISI ADMIN/STAFF
 // =========================================================
-function AdminInventoryView({ products, loading, user, onAdd, onDelete, onUpdate }) {
+function AdminInventoryView({ products, loading, user, onAdd, onDelete, onUpdate, onBulkDelete }) {
   const { searchQuery, selectedCategory } = useOutletContext();
   const filteredProducts = useFilteredProducts(products, searchQuery, selectedCategory);
 
@@ -70,52 +69,84 @@ function AdminInventoryView({ products, loading, user, onAdd, onDelete, onUpdate
           <AddProductModal onAdd={onAdd} />
         )}
       </div>
+      
       {loading ? (
         <div className="h-64 border-2 border-dashed rounded-xl flex items-center justify-center animate-pulse bg-slate-50 text-slate-400 font-bold uppercase tracking-widest">
           Sinkronisasi Inventaris...
         </div>
       ) : (
-        <ProductTable products={filteredProducts} onDelete={onDelete} onUpdate={onUpdate} />
+        <ProductTable 
+          products={filteredProducts} 
+          onDelete={onDelete} 
+          onUpdate={onUpdate}
+          onBulkDelete={onBulkDelete} // OPER KE TABLE
+        />
       )}
     </div>
   );
 }
 
 // =========================================================
-// KOMPONEN UTAMA: APP
+// KOMPONEN UTAMA: APP (THE BRAIN)
 // =========================================================
 function App() {
   const { products, loading: productsLoading, error, deleteProduct, addProduct, updateProduct } = useProducts();
   const { user, isAuthenticated, loading: authLoading } = useAuth();
 
-  const handleDelete = async (id) => {
+  // 1. LOGIKA PROTEKSI AKSES (REUSABLE)
+  const verifyAdminAction = () => {
     if (user?.role !== "admin") {
       alert("Otoritas Ditolak: Hanya Admin Utama yang dapat menghapus data.");
-      return;
+      return false;
     }
+    return true;
+  };
+
+  // 2. HANDLER HAPUS SATUAN
+  const handleDelete = async (id) => {
+    if (!verifyAdminAction()) return;
     if (window.confirm("Hapus produk ini dari database?")) {
       const result = await deleteProduct(id);
       if (!result.success) alert("Gagal: " + result.message);
     }
   };
 
-  if (authLoading) return <div className="h-screen flex items-center justify-center bg-slate-50"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>;
+  // 3. HANDLER HAPUS MASSAL (BULK DELETE)
+  const handleBulkDelete = async (selectedIds) => {
+    if (!verifyAdminAction()) return;
+    if (selectedIds.length === 0) return;
+
+    if (window.confirm(`Konfirmasi: Hapus ${selectedIds.length} produk sekaligus?`)) {
+      // Menggunakan Promise.all untuk eksekusi paralel agar cepat
+      const results = await Promise.all(selectedIds.map(id => deleteProduct(id)));
+      
+      const failed = results.filter(r => !r.success);
+      if (failed.length > 0) {
+        alert(`Selesai dengan catatan: ${failed.length} item gagal dihapus.`);
+      } else {
+        alert(`Sukses! ${selectedIds.length} item telah dihapus.`);
+      }
+    }
+  };
+
+  if (authLoading) return (
+    <div className="h-screen flex items-center justify-center bg-slate-50">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+    </div>
+  );
 
   return (
     <CartProvider>
       <Router>
         <Routes>
-          {/* ================= JALUR PUBLIC ================= */}
           <Route element={<PublicLayout />}>
             <Route path="/" element={<KatalogView products={products} loading={productsLoading} error={error} />} />
             <Route path="/detail/:id" element={<ProductDetail />} />
           </Route>
 
-          {/* ================= JALUR LOGIN ================= */}
           <Route path="/login" element={<Login />} />
 
-          {/* ================= JALUR ADMIN & STAFF (OPERASIONAL) ================= */}
-          {/* Manager tetap diizinkan masuk ke sini agar bisa mengawasi operasional */}
+          {/* JALUR ADMIN & STAFF */}
           <Route 
             path="/admin" 
             element={
@@ -126,13 +157,16 @@ function App() {
           >
             <Route index element={
               <AdminInventoryView 
-                products={products} loading={productsLoading} user={user}
-                onAdd={addProduct} onDelete={handleDelete} onUpdate={updateProduct}
+                products={products} 
+                loading={productsLoading} 
+                user={user}
+                onAdd={addProduct} 
+                onDelete={handleDelete} 
+                onUpdate={updateProduct}
+                onBulkDelete={handleBulkDelete} // PASS KE VIEW
               />
             } />
             <Route path="orders" element={<OrderManagement />} />
-            
-            {/* KHUSUS ADMIN UTAMA: Manajemen User [cite: 2026-01-08] */}
             <Route path="users" element={
               <ProtectedRoute allowRoles={["admin"]}>
                 <UserManagement />
@@ -140,8 +174,7 @@ function App() {
             } />
           </Route>
 
-          {/* ================= JALUR MANAGER (STRATEGIS) ================= */}
-          {/* REVISI KRITIS: Hapus "admin" dari allowRoles agar jalur ini murni untuk Manager */}
+          {/* JALUR MANAGER */}
           <Route 
             path="/manager" 
             element={

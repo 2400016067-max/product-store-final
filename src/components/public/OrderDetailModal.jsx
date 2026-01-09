@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { 
   Package, 
   RefreshCw, 
@@ -7,7 +7,9 @@ import {
   Box, 
   Truck, 
   CheckCircle2,
-  ChevronRight
+  ChevronRight,
+  MapPin,
+  Loader2
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { cn } from "@/lib/utils";
@@ -24,132 +26,145 @@ import { Badge } from "@/components/ui/badge";
 
 export default function OrderDetailModal() {
   const { user, isViewer, refreshUserData } = useAuth();
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Proteksi Role: Memastikan fitur pelacakan eksklusif hanya untuk akun dengan role Viewer
+  // Proteksi Role: Hanya untuk Viewer
   if (!isViewer) return null;
+
+  // Logika Pemetaan Progres Pesanan [cite: 2025-09-29]
+  const getStatusStep = (status) => {
+    if (status?.includes("Diproses")) return 1;
+    if (status?.includes("Perjalanan") || status?.includes("Dikirim")) return 2;
+    if (status?.includes("Selesai") || status?.includes("Diterima")) return 3;
+    return 0; // Pending / Belum Ada Pesanan
+  };
+
+  const currentStep = getStatusStep(user?.orderStatus);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await refreshUserData();
+    // Simulasi delay sedikit agar animasi loading terlihat
+    setTimeout(() => setIsRefreshing(false), 800);
+  };
 
   return (
     <Dialog>
       <DialogTrigger asChild>
-        {/* TRIGGER BUTTON: Modern Interaction
-           Menggunakan kombinasi flex-col untuk label ganda dan efek group-hover:rotate-12 
-           agar ikon paket terlihat "hidup" saat disentuh. */}
         <button className="flex items-center gap-3 bg-white border border-slate-200 pl-4 pr-2 py-1.5 rounded-2xl hover:border-blue-600 hover:bg-blue-50/30 transition-all cursor-pointer shadow-sm group active:scale-95">
           <div className="flex flex-col text-left leading-none">
-            <span className="text-[7px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Status Order</span>
+            <span className="text-[7px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Live Tracking</span>
             <span className="text-[10px] font-black text-slate-900 uppercase tracking-tight">
-              {user?.orderStatus || "Pending"}
+              {user?.orderStatus || "No Order"}
             </span>
           </div>
-          <div className="p-2 bg-blue-600 text-white rounded-xl group-hover:rotate-12 transition-transform shadow-lg shadow-blue-100">
-            <Package size={14} />
+          <div className="p-2 bg-blue-600 text-white rounded-xl group-hover:rotate-12 transition-transform shadow-lg shadow-blue-200">
+            <Truck size={14} className={currentStep > 0 ? "animate-pulse" : ""} />
           </div>
         </button>
       </DialogTrigger>
 
-      {/* DIALOG CONTENT: Modern Radius & Aesthetic Framing
-         Menggunakan rounded-[3rem] untuk menyelaraskan dengan bahasa desain "soft-bubbly" di seluruh aplikasi. */}
-      <DialogContent className="sm:max-w-[480px] rounded-[3rem] border-none shadow-2xl p-0 overflow-hidden font-sans bg-white">
+      <DialogContent className="sm:max-w-[500px] rounded-[3rem] border-none shadow-2xl p-0 overflow-hidden font-sans bg-white animate-in zoom-in-95 duration-300">
         
-        {/* HEADER SECTION: Dark Mode Aesthetic
-           Penggunaan bg-slate-900 memberikan kontras tinggi (Visual Impact) yang membedakan area informasi status dari konten lainnya. */}
-        <div className="bg-slate-900 p-10 text-white relative overflow-hidden">
-          {/* DECORATIVE ELEMENTS: Blur & Abstract Icon
-             Efek blur-3xl dan ikon Truck transparan menciptakan kedalaman visual (depth) tanpa mengganggu teks utama. */}
-          <div className="absolute -right-10 -top-10 opacity-10 rotate-12 bg-blue-500 w-48 h-48 rounded-full blur-3xl"></div>
-          <div className="absolute right-6 top-6 opacity-20 rotate-12">
-            <Truck size={100} strokeWidth={1} />
-          </div>
-
+        {/* HEADER: Dynamic Background Based on Status */}
+        <div className={cn(
+          "p-10 text-white relative overflow-hidden transition-colors duration-500",
+          currentStep === 3 ? "bg-emerald-600" : "bg-slate-900"
+        )}>
+          <div className="absolute -right-10 -top-10 opacity-20 rotate-12 bg-white w-64 h-64 rounded-full blur-3xl"></div>
+          
           <DialogHeader className="relative z-10">
             <div className="flex items-center gap-3 mb-4">
-               <Badge className="bg-blue-600 hover:bg-blue-600 border-none px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest">
-                 Live Tracking
+               <Badge className="bg-white/20 hover:bg-white/30 backdrop-blur-md border-none px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest text-white">
+                 Real-time System v1.1
                </Badge>
             </div>
-            {/* BOLD TYPOGRAPHY: Menggunakan font-black & italic untuk menciptakan kesan "Shipment Detail" yang mendesak dan penting. */}
-            <DialogTitle className="text-3xl font-black italic uppercase tracking-tighter flex items-center gap-3 leading-none">
-              Shipment <br /> Detail
+            <DialogTitle className="text-4xl font-black italic uppercase tracking-tighter flex items-center gap-3 leading-none">
+              Order <br /> Tracking
             </DialogTitle>
-            <DialogDescription className="sr-only">
-              Detail status pesanan untuk ID Pelanggan: {user?.id}
-            </DialogDescription>
           </DialogHeader>
-          <div className="mt-6 flex items-center gap-2">
-             <div className="w-8 h-1 bg-blue-600 rounded-full"></div>
-             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.3em]">ID: {user?.id?.slice(0, 12)}...</p>
+
+          <div className="mt-8 flex items-center justify-between relative z-10">
+            <div className="flex flex-col">
+              <span className="text-[9px] font-bold text-white/50 uppercase tracking-[0.3em]">Customer ID</span>
+              <span className="text-xs font-mono font-bold tracking-wider">USR-{user?.id?.slice(0, 8)}</span>
+            </div>
+            {currentStep === 3 && <CheckCircle2 size={40} className="text-white animate-bounce" />}
           </div>
         </div>
 
         <div className="p-8 space-y-8 bg-white">
-          {/* PRODUCT INFO: Modern Pill Container
-             Menggunakan bg-slate-50 dan rounded-[2rem] untuk memisahkan informasi produk secara bersih. */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between px-2">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Informasi Paket</span>
-              <Box size={14} className="text-slate-300" />
-            </div>
-            <div className="group bg-slate-50 p-6 rounded-[2rem] border-2 border-slate-100 hover:border-blue-100 transition-all relative overflow-hidden">
-              <p className="text-base font-black text-slate-900 leading-tight relative z-10">
-                {user?.orderProduct || "Menunggu konfirmasi produk..."}
+          
+          {/* STEP PROGRESS INDICATOR  */}
+          
+          <div className="relative flex justify-between items-center px-4 py-2">
+            <div className="absolute h-[2px] bg-slate-100 w-[80%] left-1/2 -translate-x-1/2 z-0"></div>
+            <div 
+              className="absolute h-[2px] bg-blue-600 transition-all duration-1000 ease-out z-0 left-[10%]" 
+              style={{ width: `${(currentStep / 3) * 80}%` }}
+            ></div>
+
+            {[0, 1, 2, 3].map((step) => (
+              <div key={step} className="relative z-10 flex flex-col items-center gap-2">
+                <div className={cn(
+                  "w-8 h-8 rounded-full flex items-center justify-center transition-all duration-500 border-4 border-white shadow-md",
+                  currentStep >= step ? "bg-blue-600 text-white scale-110" : "bg-slate-200 text-slate-400"
+                )}>
+                  {step === 0 && <Box size={12} />}
+                  {step === 1 && <RefreshCw size={12} className={currentStep === 1 ? "animate-spin" : ""} />}
+                  {step === 2 && <Truck size={12} className={currentStep === 2 ? "animate-bounce" : ""} />}
+                  {step === 3 && <MapPin size={12} />}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* PRODUCT CARD */}
+          <div className="space-y-3">
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Detail Item</span>
+            <div className="bg-slate-50 p-6 rounded-[2.5rem] border-2 border-slate-100 hover:border-blue-100 transition-all group">
+              <p className="text-base font-black text-slate-900 leading-tight uppercase italic">
+                {user?.orderProduct || "Belum ada pesanan terdeteksi"}
               </p>
-              <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                <Package size={40} />
+              <div className="mt-4 flex items-center gap-4">
+                <div className="flex -space-x-2">
+                  <div className="w-6 h-6 rounded-full bg-blue-100 border-2 border-white"></div>
+                  <div className="w-6 h-6 rounded-full bg-indigo-100 border-2 border-white"></div>
+                </div>
+                <span className="text-[10px] font-bold text-slate-500">Premium Packaging Included</span>
               </div>
             </div>
           </div>
 
-          {/* STATUS GRID: Dynamic Color Coding
-             Warna berubah otomatis (biru/hijau) berdasarkan status untuk memberikan sinyal visual instan kepada user. */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-slate-50 p-4 rounded-2xl flex flex-col gap-1 border border-slate-100">
-              <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1">
-                <Clock size={10} /> Last Update
-              </span>
-              <span className="text-xs font-bold text-slate-900 tracking-tight">Hari Ini</span>
-            </div>
-            <div className={cn(
-              "p-4 rounded-2xl flex flex-col gap-1 border animate-in zoom-in duration-500",
-              user?.orderStatus === "Selesai" 
-                ? "bg-green-50 border-green-100 text-green-700" 
-                : "bg-blue-50 border-blue-100 text-blue-700"
-            )}>
-              <span className="text-[8px] font-black opacity-60 uppercase tracking-widest flex items-center gap-1">
-                {user?.orderStatus === "Selesai" ? <CheckCircle2 size={10} /> : <RefreshCw size={10} />} Status
-              </span>
-              <span className="text-xs font-black uppercase tracking-tighter">
-                {user?.orderStatus || "Processing"}
-              </span>
-            </div>
-          </div>
-
-          {/* ADMIN NOTE: Bubble Chat Aesthetic
-             Desain unik rounded-tr-none mensimulasikan gaya pesan chat, memberikan sentuhan personal dari admin. */}
-          <div className="space-y-4 pt-2">
-             <div className="flex items-center gap-2 px-2">
+          {/* ADMIN MESSAGE BUBBLE */}
+          <div className="relative group">
+            <div className="absolute -left-2 top-0 bottom-0 w-1 bg-blue-600 rounded-full scale-y-0 group-hover:scale-y-100 transition-transform duration-500"></div>
+            <div className="pl-4">
+              <div className="flex items-center gap-2 mb-3">
                 <MessageSquare size={14} className="text-blue-600" />
-                <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest italic">Pesan Dari Admin</span>
-             </div>
-             <div className="bg-blue-600 text-white p-6 rounded-[2.5rem] rounded-tr-none shadow-xl shadow-blue-100 relative">
-                <p className="text-sm font-medium leading-relaxed italic opacity-95">
-                  "{user?.adminMessage || "Halo! Tim kami sedang menyiapkan pesanan Anda. Mohon ditunggu ya!"}"
+                <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Pesan Logistik</span>
+              </div>
+              <div className="bg-slate-900 text-white p-6 rounded-[2.5rem] rounded-bl-none shadow-xl">
+                <p className="text-xs font-medium leading-relaxed opacity-90 italic">
+                  "{user?.adminMessage || "Pesanan Anda masuk ke sistem. Menunggu kurir mengambil paket."}"
                 </p>
-                <div className="mt-4 pt-4 border-t border-white/20 flex justify-between items-center">
-                   <span className="text-[9px] font-black uppercase tracking-widest opacity-60">Verified Admin</span>
-                   <ChevronRight size={14} className="opacity-40" />
-                </div>
-             </div>
+              </div>
+            </div>
           </div>
 
-          {/* SYNC ACTION: Dashed Border Design
-             Menggunakan border-dashed dan tracking-[0.2em] untuk membedakan tombol utilitas dengan tombol aksi utama. */}
+          {/* ACTION BUTTON */}
           <Button 
-            onClick={refreshUserData} 
+            onClick={handleRefresh} 
+            disabled={isRefreshing}
             variant="outline" 
-            className="w-full h-14 rounded-2xl gap-3 font-black text-[10px] uppercase tracking-[0.2em] text-slate-400 hover:text-blue-600 hover:bg-blue-50 hover:border-blue-200 transition-all border-dashed border-2 group"
+            className="w-full h-14 rounded-3xl gap-3 font-black text-[10px] uppercase tracking-[0.2em] text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-all border-2 border-dashed group"
           >
-            <RefreshCw size={14} className="group-active:rotate-180 transition-transform duration-500" /> 
-            Sinkronisasi Data Terbaru
+            {isRefreshing ? (
+              <Loader2 size={16} className="animate-spin text-blue-600" />
+            ) : (
+              <RefreshCw size={14} className="group-hover:rotate-180 transition-transform duration-700" />
+            )}
+            {isRefreshing ? "Menghubungkan Server..." : "Sinkronisasi Status"}
           </Button>
         </div>
       </DialogContent>
