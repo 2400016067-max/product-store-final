@@ -18,6 +18,9 @@ import NotFound from "./pages/public/NotFound";
 import ManagerDashboard from "./pages/manager/ManagerDashboard";
 import AnalyticsReport from "./pages/manager/AnalyticsReport";
 
+// LANGKAH 1: IMPORT HALAMAN MANAJEMEN NOTE [cite: 2025-09-29]
+import ManageNotes from "./pages/manager/ManageNotes";
+
 // PROVIDER & HOOKS
 import { CartProvider } from "./contexts/CartContext"; 
 import { useProducts } from "./hooks/useProducts"; 
@@ -184,10 +187,11 @@ function App() {
           >
             <Route index element={<ManagerDashboard />} />
             <Route path="reports" element={<AnalyticsReport />} />
+            {/* PENAMBAHAN RUTE MANAGE NOTES [cite: 2025-09-29] */}
+            <Route path="notes" element={<ManageNotes />} />
           </Route>
 
           {/* 4. CATCH-ALL ROUTE (404 NOT FOUND) [cite: 2025-12-30] */}
-          {/* Letakkan rute ini di paling bawah agar tidak memblokir rute lain */}
           <Route path="*" element={<NotFound />} /> 
         </Routes>
       </Router>

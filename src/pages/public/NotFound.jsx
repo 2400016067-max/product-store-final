@@ -19,7 +19,7 @@ export default function NotFound() {
       {/* Text Content */}
       <div className="text-center space-y-4 relative z-10">
         <h2 className="text-4xl font-black text-slate-900 uppercase tracking-tighter italic">
-          Otoritas <span className="text-indigo-600">Terputus</span>
+          Web <span className="text-indigo-600">Eror</span>
         </h2>
         <p className="text-slate-500 font-medium max-w-md mx-auto leading-relaxed uppercase text-[10px] tracking-[0.2em]">
           Sistem tidak menemukan koordinat URL yang Anda tuju. Mohon kembali ke jalur yang benar.
