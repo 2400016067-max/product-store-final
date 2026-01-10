@@ -18,12 +18,29 @@ export const AuthProvider = ({ children }) => {
 
   const AUTH_API = "https://694615d7ed253f51719d04d2.mockapi.io/users";
 
-  // HELPER INTERNAL: Sinkronisasi State & Storage
+  // DEFAULT STRUCTURE: Standarisasi data promo agar tidak crash [cite: 2026-01-10]
+  const defaultPromo = { 
+    isActive: false, 
+    code: "", 
+    discount: 0, 
+    message: "", 
+    validUntil: "" 
+  };
+
+  // ============================================================
+  // HELPER INTERNAL: Sinkronisasi State & Storage (ANTI-CRASH)
+  // ============================================================
   const syncUser = (userData) => {
-    setUser(userData);
     if (userData) {
+      // KRITIS: Mengubah array [] dari MockAPI menjadi Object standar secara otomatis
+      if (Array.isArray(userData.personalPromo) || !userData.personalPromo) {
+        userData.personalPromo = { ...defaultPromo };
+      }
+      
+      setUser(userData);
       sessionStorage.setItem("admin_user", JSON.stringify(userData));
     } else {
+      setUser(null);
       sessionStorage.removeItem("admin_user");
     }
   };
@@ -33,7 +50,10 @@ export const AuthProvider = ({ children }) => {
     const checkSession = () => {
       try {
         const savedUser = sessionStorage.getItem("admin_user");
-        if (savedUser) setUser(JSON.parse(savedUser));
+        if (savedUser) {
+          const parsedUser = JSON.parse(savedUser);
+          syncUser(parsedUser); 
+        }
       } catch (error) {
         sessionStorage.removeItem("admin_user");
       } finally {
@@ -43,16 +63,50 @@ export const AuthProvider = ({ children }) => {
     checkSession();
   }, []);
 
-  // 2. MONITORING OTORITAS OTOMATIS (Background Sync)
+  // 2. MONITORING OTORITAS & AUTO-CLEANUP PROMO (Background Sync)
   useEffect(() => {
-    const verifyAuthority = async () => {
+    const verifyAuthorityAndPromo = async () => {
       if (!user?.id) return;
       try {
         const response = await fetch(`${AUTH_API}/${user.id}`);
         if (response.ok) {
           const latestData = await response.json();
-          if (latestData.role !== user.role) {
-            console.warn("Authority change detected!");
+          let needsDatabaseUpdate = false;
+
+          // STEP A: Proteksi Tipe Data (Repair [] to {})
+          if (Array.isArray(latestData.personalPromo) || !latestData.personalPromo) {
+            latestData.personalPromo = { ...defaultPromo };
+            needsDatabaseUpdate = true;
+          }
+
+          let updatedPromo = { ...latestData.personalPromo };
+
+          // STEP B: Logika Real-time Expiry (Auto-Cleanup) [cite: 2026-01-10]
+          if (updatedPromo.isActive && updatedPromo.validUntil) {
+            const now = new Date();
+            const expiryDate = new Date(updatedPromo.validUntil);
+            if (now > expiryDate) {
+              console.warn("🚨 Promo kadaluarsa terdeteksi pada user:", user.name);
+              updatedPromo.isActive = false;
+              needsDatabaseUpdate = true;
+            }
+          }
+
+          const isDataChanged = 
+            latestData.role !== user.role || 
+            JSON.stringify(latestData.personalPromo) !== JSON.stringify(user.personalPromo) ||
+            latestData.referralCode !== user.referralCode ||
+            latestData.managerBroadcast !== user.managerBroadcast;
+
+          if (needsDatabaseUpdate) {
+            const updateRes = await fetch(`${AUTH_API}/${user.id}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ ...latestData, personalPromo: updatedPromo }),
+            });
+            const cleanedData = await updateRes.json();
+            syncUser(cleanedData); 
+          } else if (isDataChanged) {
             syncUser(latestData);
           }
         } else if (response.status === 404) {
@@ -65,14 +119,15 @@ export const AuthProvider = ({ children }) => {
 
     let authInterval;
     if (user) {
-      authInterval = setInterval(verifyAuthority, 40000);
+      authInterval = setInterval(verifyAuthorityAndPromo, 40000); 
+      verifyAuthorityAndPromo(); 
     }
     return () => clearInterval(authInterval);
-  }, [user?.id, user?.role]); 
+  }, [user?.id, user?.role, user?.personalPromo]); 
 
   // 3. REFRESH DATA MANUAL
   const refreshUserData = useCallback(async () => {
-    if (!user?.id) return;
+    if (!user?.id) return { success: false };
     try {
       const response = await fetch(`${AUTH_API}/${user.id}`);
       if (response.ok) {
@@ -85,25 +140,23 @@ export const AuthProvider = ({ children }) => {
     }
   }, [user?.id]);
 
-  // 4. FUNGSI REGISTER MANUAL (Firebase + MockAPI) [cite: 2026-01-10]
+  // 4. FUNGSI REGISTER MANUAL
   const registerManual = async (name, email, password) => {
     try {
-      // Step A: Buat akun di Firebase Auth
       const firebaseResult = await createUserWithEmailAndPassword(auth, email, password);
-      const firebaseUser = firebaseResult.user;
-
-      // Step B: Simpan profil lengkap di MockAPI
       const newUser = {
-        username: email, // Email digunakan sebagai username/ID unik
-        password: "secured-by-firebase", // Password asli aman di Firebase
+        username: email,
+        password: "secured-by-firebase",
         name: name,
-        role: "viewer", // Default role
+        role: "viewer",
         orderStatus: "Belum Ada Pesanan",
         personalNotes: [], 
         adminMessage: "Akun berhasil dibuat secara manual.",
         managerBroadcast: "",
         orderProduct: "",
-        orderDate: new Date().toISOString()
+        orderDate: new Date().toISOString(),
+        referralCode: "",
+        personalPromo: { ...defaultPromo } 
       };
 
       const response = await fetch(AUTH_API, {
@@ -116,35 +169,24 @@ export const AuthProvider = ({ children }) => {
       syncUser(foundUser);
       return { success: true };
     } catch (error) {
-      console.error("Registration Error:", error);
-      let msg = "Gagal membuat akun.";
-      if (error.code === "auth/email-already-in-use") msg = "Email sudah terdaftar!";
-      return { success: false, message: msg };
+      return { success: false, message: "Gagal membuat akun." };
     }
   };
 
-  // 5. FUNGSI LOGIN MANUAL (Firebase + MockAPI) [cite: 2026-01-10]
+  // 5. FUNGSI LOGIN MANUAL
   const login = async (email, password) => {
     try {
-      // Step A: Verifikasi kredensial ke Firebase
       await signInWithEmailAndPassword(auth, email, password);
-
-      // Step B: Jika Firebase OK, ambil data profil dari MockAPI
       const response = await fetch(AUTH_API);
       const users = await response.json();
       const foundUser = users.find(u => u.username === email);
-
       if (foundUser) {
         syncUser(foundUser);
         return { success: true };
-      } else {
-        return { success: false, message: "Data profil tidak ditemukan di database." };
       }
+      return { success: false, message: "Data profil tidak ditemukan." };
     } catch (error) {
-      console.error("Login Error:", error);
-      let msg = "Email atau Password salah!";
-      if (error.code === "auth/user-not-found") msg = "Akun tidak ditemukan!";
-      return { success: false, message: msg };
+      return { success: false, message: "Login gagal." };
     }
   };
 
@@ -168,7 +210,9 @@ export const AuthProvider = ({ children }) => {
           adminMessage: "Selamat datang! Akun Anda diverifikasi via Google.",
           managerBroadcast: "",
           orderProduct: "",
-          orderDate: new Date().toISOString()
+          orderDate: new Date().toISOString(),
+          referralCode: "",
+          personalPromo: { ...defaultPromo }
         };
         const createRes = await fetch(AUTH_API, {
           method: "POST",
@@ -180,13 +224,13 @@ export const AuthProvider = ({ children }) => {
       syncUser(foundUser);
       return { success: true };
     } catch (error) {
-      return { success: false, message: "Gagal masuk dengan Google." };
+      return { success: false };
     }
   };
 
-  // 7. UPDATE DATA PROFIL/USER
+  // 7. UPDATE DATA PROFIL
   const updateProfile = async (updates) => {
-    if (!user) return { success: false, message: "Sesi berakhir." };
+    if (!user) return { success: false };
     try {
       const response = await fetch(`${AUTH_API}/${user.id}`, {
         method: "PUT",
@@ -197,11 +241,11 @@ export const AuthProvider = ({ children }) => {
       syncUser(updatedData);
       return { success: true };
     } catch (error) {
-      return { success: false, message: error.message };
+      return { success: false };
     }
   };
 
-  // 8. UPDATE DATA PESANAN (Admin)
+  // 8. UPDATE DATA PESANAN
   const updateUserOrder = async (userId, updateData) => {
     try {
       const res = await fetch(`${AUTH_API}/${userId}`);
@@ -215,7 +259,7 @@ export const AuthProvider = ({ children }) => {
       if (user?.id === userId) syncUser(data);
       return { success: true, data };
     } catch (error) {
-      return { success: false, message: error.message };
+      return { success: false };
     }
   };
 
@@ -235,7 +279,7 @@ export const AuthProvider = ({ children }) => {
       await refreshUserData(); 
       return { success: true };
     } catch (e) {
-      return { success: false, message: e.message };
+      return { success: false };
     }
   };
 
@@ -259,7 +303,7 @@ export const AuthProvider = ({ children }) => {
       });
       return { success: true };
     } catch (e) {
-      return { success: false, message: e.message };
+      return { success: false };
     }
   };
 
@@ -277,7 +321,87 @@ export const AuthProvider = ({ children }) => {
     } catch (e) { console.error(e); }
   };
 
-  // 11. LOGOUT
+  // 11. FITUR: SEND PERSONAL PROMO
+  const sendPersonalPromo = async (targetUserId, promoData) => {
+    try {
+      const res = await fetch(`${AUTH_API}/${targetUserId}`);
+      const targetData = await res.json();
+      const response = await fetch(`${AUTH_API}/${targetUserId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          ...targetData, 
+          personalPromo: { ...promoData, isActive: true } 
+        }),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (user?.id === targetUserId) syncUser(data);
+        return { success: true };
+      }
+    } catch (e) {
+      return { success: false };
+    }
+  };
+
+  // ============================================================
+  // 12. FITUR BARU: REDEEM PROMO (HANYA SEKALI PAKAI) [cite: 2026-01-10]
+  // ============================================================
+  const redeemPersonalPromo = async () => {
+    if (!user?.id || !user?.personalPromo?.isActive) return { success: false };
+    try {
+      const response = await fetch(`${AUTH_API}/${user.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          ...user, 
+          personalPromo: { 
+            ...user.personalPromo, 
+            isActive: false // Hanguskan promo setelah dipakai sekali
+          } 
+        }),
+      });
+      if (response.ok) {
+        const updatedData = await response.json();
+        syncUser(updatedData); 
+        return { success: true };
+      }
+    } catch (e) {
+      return { success: false };
+    }
+  };
+
+  // ============================================================
+  // 13. FITUR BARU: DELETE PERSONAL PROMO (MANUAL RESET) [cite: 2026-01-10]
+  // ============================================================
+  const deletePersonalPromo = async (targetUserId) => {
+    try {
+      const res = await fetch(`${AUTH_API}/${targetUserId}`);
+      if (!res.ok) throw new Error("User tidak ditemukan");
+      const targetData = await res.json();
+
+      const response = await fetch(`${AUTH_API}/${targetUserId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          ...targetData, 
+          personalPromo: { ...defaultPromo } // Reset ke struktur kosong
+        }),
+      });
+
+      if (response.ok) {
+        const updatedData = await response.json();
+        // Sinkronkan state jika Admin/Manager menghapus promo miliknya sendiri
+        if (user?.id === targetUserId) syncUser(updatedData);
+        return { success: true };
+      }
+      return { success: false };
+    } catch (e) {
+      return { success: false, message: e.message };
+    }
+  };
+
+  // 14. LOGOUT
   const logout = () => {
     syncUser(null);
   };
@@ -286,6 +410,9 @@ export const AuthProvider = ({ children }) => {
     user, login, registerManual, loginWithGoogle, logout, loading,
     updateUserOrder, updateProfile, refreshUserData, 
     sendStickyNote, clearNote, broadcastMessage,
+    sendPersonalPromo,
+    redeemPersonalPromo,
+    deletePersonalPromo, // Ekspos fungsi ke Dashboard Manager
     isAuthenticated: !!user,
     isAdmin: user?.role?.toLowerCase() === "admin",
     isStaff: user?.role?.toLowerCase() === "staff",

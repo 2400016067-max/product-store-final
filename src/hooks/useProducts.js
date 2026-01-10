@@ -17,12 +17,10 @@ export const useProducts = () => {
       
       const sanitizedData = data.map(p => ({
         ...p,
-        // Sanitasi dasar
         reviews: Array.isArray(p.reviews) ? p.reviews : [],
-        avgRating: p.avgRating || 0,
-        // Sanitasi Logic Promo: Jika originalPrice belum ada, gunakan price saat ini [cite: 2025-11-02]
-        originalPrice: p.originalPrice || p.price,
-        discountPercent: p.discountPercent || 0,
+        avgRating: Number(p.avgRating) || 0,
+        originalPrice: Number(p.originalPrice) || Number(p.price) || 0,
+        discountPercent: Number(p.discountPercent) || 0,
         promoStart: p.promoStart || "",
         promoEnd: p.promoEnd || ""
       }));
@@ -48,9 +46,9 @@ export const useProducts = () => {
       return {
         ...data,
         reviews: Array.isArray(data.reviews) ? data.reviews : [],
-        avgRating: data.avgRating || 0,
-        originalPrice: data.originalPrice || data.price,
-        discountPercent: data.discountPercent || 0
+        avgRating: Number(data.avgRating) || 0,
+        originalPrice: Number(data.originalPrice) || Number(data.price) || 0,
+        discountPercent: Number(data.discountPercent) || 0
       };
     } catch (err) {
       console.error("Hook Error (Detail):", err.message);
@@ -71,7 +69,6 @@ export const useProducts = () => {
       if (!response.ok) throw new Error("Gagal memperbarui produk.");
       const updatedProduct = await response.json();
       
-      // Sinkronisasi state lokal
       setProducts((prev) => prev.map((p) => (p.id === id ? updatedProduct : p)));
       return { success: true, data: updatedProduct };
     } catch (err) {
@@ -79,18 +76,19 @@ export const useProducts = () => {
     }
   };
 
-  // 4. ACTIVATE PROMO (LOGIKA STRATEGIS MANAGER)
+  // 4. ACTIVATE PROMO
   const activatePromo = async (productId, discount, startTime, endTime) => {
     const product = products.find(p => p.id === productId);
     if (!product) return { success: false, message: "Produk tidak ditemukan" };
 
-    // Kalkulasi Harga: (Harga Asli - Potongan)
-    const newPrice = Math.round(product.originalPrice - (product.originalPrice * (discount / 100)));
+    const original = Number(product.originalPrice);
+    const disc = Number(discount);
+    const newPrice = Math.round(original - (original * (disc / 100)));
 
     const payload = {
-      ...product, // Sebarkan data lama agar tidak hilang (reviews, dll)
+      ...product,
       price: newPrice,
-      discountPercent: parseInt(discount),
+      discountPercent: parseInt(disc),
       promoStart: startTime,
       promoEnd: endTime
     };
@@ -98,7 +96,7 @@ export const useProducts = () => {
     return await updateProduct(productId, payload);
   };
 
-  // 5. RESET PRODUCT (KEMBALIKAN KE HARGA NORMAL)
+  // 5. RESET PRODUCT PRICE
   const resetProductPrice = async (productId) => {
     const product = products.find(p => p.id === productId);
     if (!product) return { success: false };
@@ -113,20 +111,33 @@ export const useProducts = () => {
     return await updateProduct(productId, payload);
   };
 
-  // 6. SUBMIT REVIEW (SINKRONISASI DENGAN DATA PROMO)
+  // 6. SUBMIT REVIEW (ANTI DATA RUSAK)
   const submitReview = async (productId, newReview) => {
+    if (!newReview || typeof newReview !== 'object' || Array.isArray(newReview)) {
+      return { success: false, message: "Data review hancur atau tidak lengkap." };
+    }
+
     try {
       const response = await fetch(`${API_URL}/${productId}`);
-      if (!response.ok) throw new Error("Produk tidak ditemukan.");
       const currentProduct = await response.json();
 
       const oldReviews = Array.isArray(currentProduct.reviews) ? currentProduct.reviews : [];
-      const updatedReviews = [...oldReviews, { ...newReview, createdAt: new Date().toISOString() }];
+      
+      // Memberikan ID unik pada review agar bisa dihapus nantinya
+      const validatedReview = {
+        id: Date.now().toString(), // ID unik untuk review
+        userName: newReview.username || newReview.userName || "Anonymous",
+        userId: newReview.userId || null,
+        rating: Number(newReview.rating) || 5,
+        comment: newReview.comment || "",
+        createdAt: new Date().toISOString()
+      };
 
-      const totalRating = updatedReviews.reduce((acc, rev) => acc + rev.rating, 0);
+      const updatedReviews = [...oldReviews, validatedReview];
+
+      const totalRating = updatedReviews.reduce((acc, rev) => acc + (Number(rev.rating) || 0), 0);
       const newAvgRating = parseFloat((totalRating / updatedReviews.length).toFixed(1));
 
-      // Gunakan updateProduct untuk konsistensi
       return await updateProduct(productId, {
         ...currentProduct,
         reviews: updatedReviews,
@@ -137,7 +148,38 @@ export const useProducts = () => {
     }
   };
 
-  // 7. DELETE
+  // ============================================================
+  // 7. FITUR BARU: DELETE SPECIFIC REVIEW
+  // ============================================================
+  const deleteReview = async (productId, reviewId) => {
+    try {
+      const response = await fetch(`${API_URL}/${productId}`);
+      if (!response.ok) throw new Error("Produk tidak ditemukan.");
+      const currentProduct = await response.json();
+
+      const oldReviews = Array.isArray(currentProduct.reviews) ? currentProduct.reviews : [];
+      
+      // Filter untuk membuang ulasan yang ID-nya cocok
+      const updatedReviews = oldReviews.filter(rev => rev.id !== reviewId);
+
+      // Kalkulasi ulang rating setelah penghapusan
+      let newAvgRating = 0;
+      if (updatedReviews.length > 0) {
+        const totalRating = updatedReviews.reduce((acc, rev) => acc + (Number(rev.rating) || 0), 0);
+        newAvgRating = parseFloat((totalRating / updatedReviews.length).toFixed(1));
+      }
+
+      return await updateProduct(productId, {
+        ...currentProduct,
+        reviews: updatedReviews,
+        avgRating: newAvgRating
+      });
+    } catch (err) {
+      return { success: false, message: err.message };
+    }
+  };
+
+  // 8. DELETE PRODUCT (TOTAL)
   const deleteProduct = async (id) => {
     try {
       const response = await fetch(`${API_URL}/${id}`, { method: "DELETE" });
@@ -149,7 +191,7 @@ export const useProducts = () => {
     }
   };
 
-  // 8. POST (Add Product)
+  // 9. POST (Add Product)
   const addProduct = async (newProduct) => {
     try {
       const response = await fetch(API_URL, {
@@ -157,7 +199,7 @@ export const useProducts = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...newProduct,
-          originalPrice: newProduct.price, // Harga asli = Harga input awal [cite: 2025-11-02]
+          originalPrice: Number(newProduct.price),
           discountPercent: 0,
           promoStart: "",
           promoEnd: "",
@@ -179,16 +221,10 @@ export const useProducts = () => {
   }, [fetchProducts]);
 
   return { 
-    products, 
-    loading, 
-    error, 
+    products, loading, error, 
     refetch: fetchProducts, 
-    deleteProduct, 
-    addProduct, 
-    updateProduct, 
-    getProductById,
-    submitReview,
-    activatePromo,   // Ekspos ke ManagerPromo.jsx
-    resetProductPrice // Ekspos untuk logika auto-reset
+    deleteProduct, addProduct, updateProduct, getProductById,
+    submitReview, deleteReview, // Ekspos fungsi baru
+    activatePromo, resetProductPrice 
   };
 };

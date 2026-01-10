@@ -9,9 +9,7 @@ import ProductTable from "./components/admin/ProductTable";
 import ProductDetail from "./pages/public/ProductDetail"; 
 import AddProductModal from "./components/admin/AddProductModal";
 import Login from "./pages/admin/Login"; 
-// --- PENAMBAHAN REGISTER ---
 import Register from "./pages/admin/Register"; 
-// ---------------------------
 import ProductCard from "./components/public/ProductCard";
 import UserManagement from "./pages/admin/UserManagement"; 
 import OrderManagement from "./pages/admin/OrderManagement"; 
@@ -24,8 +22,6 @@ import ManagerDashboard from "./pages/manager/ManagerDashboard";
 import AnalyticsReport from "./pages/manager/AnalyticsReport";
 import ManageNotes from "./pages/manager/ManageNotes";
 import ManagerUserManagement from "./pages/manager/ManagerUserManagement";
-
-// LANGKAH 1: IMPORT HALAMAN PROMO STRATEGIS
 import ManagerPromo from "./pages/manager/ManagerPromo";
 
 import { CartProvider } from "./contexts/CartContext"; 
@@ -103,9 +99,11 @@ function AdminInventoryView({ products, loading, user, onAdd, onDelete, onUpdate
 // =========================================================
 function App() {
   const { products, loading: productsLoading, resetProductPrice, deleteProduct, addProduct, updateProduct } = useProducts();
-  const { user, loading: authLoading } = useAuth();
+  
+  // Destructure updateProfile agar bisa melakukan Auto-Cleanup Promo
+  const { user, loading: authLoading, updateProfile } = useAuth();
 
-  // LOGIC GUARDIAN: Pengecekan Durasi Promo Otomatis
+  // --- LOGIC GUARDIAN 1: PROMO PRODUK (MASAL) ---
   useEffect(() => {
     if (products.length > 0 && !productsLoading) {
       products.forEach(async (p) => {
@@ -120,6 +118,24 @@ function App() {
       });
     }
   }, [products, productsLoading, resetProductPrice]);
+
+  // --- LOGIC GUARDIAN 2: PROMO PERSONAL (USER-CENTRIC) [cite: 2026-01-10] ---
+  useEffect(() => {
+    // Mengecek apakah user login memiliki promo aktif yang punya batas waktu
+    if (user?.personalPromo?.isActive && user?.personalPromo?.validUntil) {
+      const now = new Date();
+      const expiry = new Date(user.personalPromo.validUntil);
+
+      if (now > expiry) {
+        // Logic Guardian: Matikan promo di database secara otomatis
+        updateProfile({ 
+          personalPromo: { ...user.personalPromo, isActive: false } 
+        });
+        console.warn(`System: Personal promo for ${user.username} expired. Auto-cleaning...`);
+        toast.info("Voucher spesial Anda telah berakhir (Expired).");
+      }
+    }
+  }, [user, updateProfile]);
 
   const verifyAdminAction = () => {
     if (user?.role !== "admin") {
@@ -215,8 +231,6 @@ function App() {
             <Route path="reports" element={<AnalyticsReport />} />
             <Route path="notes" element={<ManageNotes />} />
             <Route path="authority" element={<ManagerUserManagement />} />
-            
-            {/* RUTE BARU: MANAJEMEN PROMO STRATEGIS */}
             <Route path="promo" element={<ManagerPromo />} />
           </Route>
 

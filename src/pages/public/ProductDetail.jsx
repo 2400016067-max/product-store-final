@@ -29,8 +29,8 @@ export default function ProductDetail() {
   const navigate = useNavigate();
   const location = useLocation(); 
   
-  // Destructuring hooks dengan pengamanan
-  const { getProductById, submitReview } = useProducts();
+  // Destructuring hooks - Tambahkan deleteReview [cite: 2026-01-10]
+  const { getProductById, submitReview, deleteReview } = useProducts();
   const { addToCart } = useCart(); 
   const { isAuthenticated } = useAuth(); 
   
@@ -38,37 +38,35 @@ export default function ProductDetail() {
   const [isLocalLoading, setIsLocalLoading] = useState(true);
   const [timeLeft, setTimeLeft] = useState("");
 
-  // 1. Validasi Status Promo & Memoization
+  // ============================================================
+  // FUNGSI LOAD DATA (DIPISAH AGAR BISA DIPANGGIL ULANG)
+  // ============================================================
+  const loadProductData = useCallback(async () => {
+    try {
+      if (!product) setIsLocalLoading(true);
+      
+      const rawData = await getProductById(id);
+      const cleanData = Array.isArray(rawData) ? (rawData[0] || null) : rawData;
+      setProduct(cleanData);
+    } catch (err) {
+      console.error("Critical Sync Error:", err);
+    } finally {
+      setIsLocalLoading(false);
+    }
+  }, [id, getProductById, product]);
+
+  // 1. Initial Fetch & Scroll Restoration
+  useEffect(() => {
+    loadProductData();
+    window.scrollTo(0, 0);
+  }, [id]); 
+
+  // 2. Validasi Status Promo & Memoization
   const isPromoExpired = usePromo(product?.promoEnd);
   const isPromoActive = useMemo(() => 
     product?.discountPercent > 0 && !isPromoExpired, 
     [product?.discountPercent, isPromoExpired]
   );
-
-  // 2. Data Fetching dengan Scroll Restoration
-  useEffect(() => {
-    let isMounted = true;
-    const loadProduct = async () => {
-      try {
-        setIsLocalLoading(true);
-        const rawData = await getProductById(id);
-        
-        if (isMounted) {
-          // Normalisasi data: menangani jika return berupa array atau object tunggal
-          const cleanData = Array.isArray(rawData) ? (rawData[0] || null) : rawData;
-          setProduct(cleanData);
-          window.scrollTo(0, 0); // User Experience: Reset scroll ke atas
-        }
-      } catch (err) {
-        console.error("Critical Sync Error:", err);
-      } finally {
-        if (isMounted) setIsLocalLoading(false);
-      }
-    };
-
-    loadProduct();
-    return () => { isMounted = false; };
-  }, [id, getProductById]);
 
   // 3. Optimized Countdown Timer
   useEffect(() => {
@@ -90,7 +88,7 @@ export default function ProductDetail() {
     };
 
     const timer = setInterval(calculateTime, 1000);
-    calculateTime(); // Jalankan langsung tanpa tunggu interval pertama
+    calculateTime();
 
     return () => clearInterval(timer);
   }, [product?.promoEnd, isPromoActive]);
@@ -104,16 +102,32 @@ export default function ProductDetail() {
     }
 
     const phoneNumber = "6282220947302"; 
-    const text = `*KONSULTASI PRODUK*\n` +
-                 `------------------\n` +
-                 `Item: ${product?.name}\n` +
-                 `Harga Aktif: Rp ${product?.price?.toLocaleString("id-ID")}\n` +
-                 `${isPromoActive ? `*Status: Sedang Promo ${product?.discountPercent}%*\n` : ""}` +
-                 `------------------\n` +
-                 `Halo Admin, saya ingin menanyakan ketersediaan item ini.`; 
+    const text = `*KONSULTASI PRODUK*\nItem: ${product?.name}\nHalo Admin, saya ingin menanyakan ketersediaan item ini.`; 
     
     window.open(`https://api.whatsapp.com/send?phone=${phoneNumber}&text=${encodeURIComponent(text)}`, "_blank");
-  }, [product, isPromoActive, isAuthenticated, navigate, location]);
+  }, [product, isAuthenticated, navigate, location]);
+
+  // ============================================================
+  // KRITIS: FUNGSI HANDLER UNTUK SUBMIT & AUTO-REFRESH
+  // ============================================================
+  const handleReviewSubmission = async (targetId, reviewData) => {
+    const result = await submitReview(targetId, reviewData);
+    if (result.success) {
+      await loadProductData(); // Sinkronisasi tampilan [cite: 2026-01-08]
+    }
+    return result;
+  };
+
+  // ============================================================
+  // BARU: FUNGSI HANDLER UNTUK DELETE & AUTO-REFRESH [cite: 2026-01-10]
+  // ============================================================
+  const handleReviewDelete = async (prodId, reviewId) => {
+    const result = await deleteReview(prodId, reviewId);
+    if (result.success) {
+      await loadProductData(); // Hapus seketika dari layar tanpa refresh browser
+    }
+    return result;
+  };
 
   // LOADING STATE
   if (isLocalLoading) return (
@@ -132,7 +146,7 @@ export default function ProductDetail() {
         Data Not Found
       </div>
       <Button onClick={() => navigate("/")} variant="link" className="font-black uppercase text-[10px] tracking-widest">
-        Kembali ke Basis Data
+        Kembali ke Katalog
       </Button>
     </div>
   );
@@ -247,7 +261,6 @@ export default function ProductDetail() {
               </p>
           </div>
 
-          {/* INTERACTION CENTER */}
           <div className="flex flex-col sm:flex-row gap-4 mt-auto">
             <Button 
               onClick={() => addToCart(product)}
@@ -279,13 +292,17 @@ export default function ProductDetail() {
             <Sparkles className="text-amber-400 animate-pulse" size={24} fill="currentColor" />
         </div>
         
-        <ReviewSection product={product} onReviewSubmit={(reviewData) => submitReview(product.id, reviewData)} />
+        {/* OPER KE ANAK: onReviewSubmit dan onReviewDelete [cite: 2026-01-10] */}
+        <ReviewSection 
+          product={product} 
+          onReviewSubmit={handleReviewSubmission} 
+          onReviewDelete={handleReviewDelete}
+        />
       </div>
     </div>
   );
 }
 
-// Sub-component dengan optimasi props
 function SpecCard({ icon, label, value }) {
     return (
         <div className="bg-white p-5 rounded-[2rem] border border-slate-100 flex flex-col items-center text-center gap-2 shadow-sm hover:shadow-indigo-100 transition-all group">
