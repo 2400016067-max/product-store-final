@@ -1,4 +1,7 @@
 import { HashRouter as Router, Routes, Route, Navigate, useOutletContext } from "react-router-dom";
+import { useEffect } from "react"; // Tambahan untuk Auto-Reset Logic
+import { toast } from "sonner"; // Upgrade alert ke toast
+
 import PublicLayout from "./components/public/PublicLayout";
 import AdminLayout from "./components/admin/AdminLayout";
 import ManagerLayout from "./components/manager/ManagerLayout"; 
@@ -20,12 +23,11 @@ import NotFound from "./pages/public/NotFound";
 // IMPORT HALAMAN MANAGER
 import ManagerDashboard from "./pages/manager/ManagerDashboard";
 import AnalyticsReport from "./pages/manager/AnalyticsReport";
-
-// IMPORT HALAMAN MANAJEMEN NOTE
 import ManageNotes from "./pages/manager/ManageNotes";
-
-// LANGKAH 1: IMPORT HALAMAN OTORITAS KHUSUS MANAGER
 import ManagerUserManagement from "./pages/manager/ManagerUserManagement";
+
+// LANGKAH 1: IMPORT HALAMAN PROMO STRATEGIS
+import ManagerPromo from "./pages/manager/ManagerPromo";
 
 // PROVIDER & HOOKS
 import { CartProvider } from "./contexts/CartContext"; 
@@ -34,26 +36,26 @@ import { useAuth } from "./contexts/AuthContext";
 import { useFilteredProducts } from "./hooks/useFilteredProducts";
 
 // =========================================================
-// KOMPONEN VIEW: SISI PUBLIK (CLEAN & MODULAR)
+// KOMPONEN VIEW: SISI PUBLIK
 // =========================================================
 function KatalogView({ products, loading, error }) {
   const { searchQuery, selectedCategory } = useOutletContext();
   const filteredProducts = useFilteredProducts(products, searchQuery, selectedCategory);
 
-  if (loading) return <div className="flex justify-center py-20 animate-pulse font-medium text-slate-400">Memuat katalog...</div>;
-  if (error) return <div className="p-4 bg-red-50 text-red-600 rounded-md text-center border border-red-100">{error}</div>;
+  if (loading) return <div className="flex justify-center py-20 animate-pulse font-black text-slate-400 uppercase tracking-widest text-xs">Synchronizing Catalog...</div>;
+  if (error) return <div className="p-4 bg-red-50 text-red-600 rounded-md text-center border border-red-100 font-bold uppercase text-[10px]">{error}</div>;
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-10 animate-in fade-in duration-700">
       <div className="text-center">
-        <h2 className="text-4xl font-extrabold tracking-tight text-slate-900 uppercase">Katalog Produk</h2>
-        <p className="text-slate-500 mt-2 italic">Koleksi perangkat audio premium pilihan kami.</p>
+        <h2 className="text-4xl font-black tracking-tighter text-slate-900 uppercase italic">Katalog Produk</h2>
+        <p className="text-slate-400 mt-2 font-medium">Koleksi perangkat audio premium pilihan kami.</p>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 px-4">
         {filteredProducts.map((item) => <ProductCard key={item.id} product={item} />)}
         {filteredProducts.length === 0 && (
-          <div className="col-span-full text-center py-20 text-slate-400 font-medium">
-            Produk "{searchQuery}" tidak ditemukan.
+          <div className="col-span-full text-center py-32 text-slate-300 font-black uppercase tracking-[0.3em] italic">
+            Produk "{searchQuery}" Tidak Terdeteksi.
           </div>
         )}
       </div>
@@ -71,10 +73,10 @@ function AdminInventoryView({ products, loading, user, onAdd, onDelete, onUpdate
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-black text-slate-800 tracking-tight uppercase">Manajemen Inventory</h2>
+        <div className="text-left">
+          <h2 className="text-2xl font-black text-slate-800 tracking-tight uppercase italic">Manajemen Inventory</h2>
           <p className="text-sm text-slate-500 font-medium italic">
-            Operator: <span className="text-blue-600 font-black uppercase">{user?.username}</span>
+            Operator: <span className="text-indigo-600 font-black uppercase tracking-widest">{user?.username}</span>
           </p>
         </div>
         {(user?.role === "admin" || user?.role === "staff") && (
@@ -83,8 +85,8 @@ function AdminInventoryView({ products, loading, user, onAdd, onDelete, onUpdate
       </div>
       
       {loading ? (
-        <div className="h-64 border-2 border-dashed rounded-xl flex items-center justify-center animate-pulse bg-slate-50 text-slate-400 font-bold uppercase tracking-widest">
-          Sinkronisasi Inventaris...
+        <div className="h-64 border-2 border-dashed rounded-[2.5rem] flex items-center justify-center animate-pulse bg-slate-50 text-slate-400 font-black uppercase tracking-widest text-[10px]">
+          Retrieving Asset Registry...
         </div>
       ) : (
         <ProductTable 
@@ -102,12 +104,29 @@ function AdminInventoryView({ products, loading, user, onAdd, onDelete, onUpdate
 // KOMPONEN UTAMA: APP (THE BRAIN)
 // =========================================================
 function App() {
-  const { products, loading: productsLoading, error, deleteProduct, addProduct, updateProduct } = useProducts();
+  const { products, loading: productsLoading, resetProductPrice, deleteProduct, addProduct, updateProduct } = useProducts();
   const { user, loading: authLoading } = useAuth();
+
+  // LOGIC GUARDIAN: Pengecekan Durasi Promo Otomatis
+  useEffect(() => {
+    if (products.length > 0 && !productsLoading) {
+      products.forEach(async (p) => {
+        const now = new Date();
+        const end = p.promoEnd ? new Date(p.promoEnd) : null;
+        
+        // Jika waktu sekarang melewati promoEnd dan diskon masih aktif di database
+        if (end && now > end && p.discountPercent > 0) {
+          await resetProductPrice(p.id);
+          console.log(`System: Promo for ${p.name} has expired. Logic Guardian has reset the price.`);
+          toast.info(`Info Sistem: Promo ${p.name} telah berakhir.`);
+        }
+      });
+    }
+  }, [products, productsLoading, resetProductPrice]);
 
   const verifyAdminAction = () => {
     if (user?.role !== "admin") {
-      alert("Otoritas Ditolak: Hanya Admin Utama yang dapat menghapus data.");
+      toast.error("Otoritas Ditolak", { description: "Hanya Admin Utama yang memiliki akses hapus." });
       return false;
     }
     return true;
@@ -115,9 +134,11 @@ function App() {
 
   const handleDelete = async (id) => {
     if (!verifyAdminAction()) return;
-    if (window.confirm("Hapus produk ini dari database?")) {
-      const result = await deleteProduct(id);
-      if (!result.success) alert("Gagal: " + result.message);
+    const result = await deleteProduct(id);
+    if (result.success) {
+      toast.success("Data Terhapus", { description: "Item berhasil dikeluarkan dari registry." });
+    } else {
+      toast.error("Gagal Menghapus", { description: result.message });
     }
   };
 
@@ -125,33 +146,31 @@ function App() {
     if (!verifyAdminAction()) return;
     if (selectedIds.length === 0) return;
 
-    if (window.confirm(`Konfirmasi: Hapus ${selectedIds.length} produk sekaligus?`)) {
-      const results = await Promise.all(selectedIds.map(id => deleteProduct(id)));
-      const failed = results.filter(r => !r.success);
-      if (failed.length > 0) {
-        alert(`Selesai dengan catatan: ${failed.length} item gagal dihapus.`);
-      } else {
-        alert(`Sukses! ${selectedIds.length} item telah dihapus.`);
-      }
+    const results = await Promise.all(selectedIds.map(id => deleteProduct(id)));
+    const failed = results.filter(r => !r.success);
+    
+    if (failed.length > 0) {
+      toast.warning("Penghapusan Parsial", { description: `${failed.length} item gagal diproses.` });
+    } else {
+      toast.success("Operasi Massal Sukses", { description: `${selectedIds.length} item telah dimusnahkan.` });
     }
   };
 
   if (authLoading) return (
     <div className="h-screen flex items-center justify-center bg-slate-50">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="h-12 w-12 border-4 border-slate-200 border-t-indigo-600 rounded-full animate-spin"></div>
     </div>
   );
 
   return (
     <CartProvider>
       <Router>
-        {/* PENEMPATAN TOASTER UNTUK NOTIFIKASI GLOBAL */}
         <Toaster position="top-right" richColors closeButton />
 
         <Routes>
           {/* 1. SISI PUBLIK */}
           <Route element={<PublicLayout />}>
-            <Route path="/" element={<KatalogView products={products} loading={productsLoading} error={error} />} />
+            <Route path="/" element={<KatalogView products={products} loading={productsLoading} />} />
             <Route path="/detail/:id" element={<ProductDetail />} />
           </Route>
 
@@ -197,12 +216,12 @@ function App() {
             <Route index element={<ManagerDashboard />} />
             <Route path="reports" element={<AnalyticsReport />} />
             <Route path="notes" element={<ManageNotes />} />
-            
-            {/* PENAMBAHAN RUTE OTORITAS MANAJERIAL */}
             <Route path="authority" element={<ManagerUserManagement />} />
+            
+            {/* RUTE BARU: MANAJEMEN PROMO STRATEGIS */}
+            <Route path="promo" element={<ManagerPromo />} />
           </Route>
 
-          {/* 4. CATCH-ALL ROUTE (404 NOT FOUND) */}
           <Route path="*" element={<NotFound />} /> 
         </Routes>
       </Router>

@@ -1,5 +1,4 @@
 import { createContext, useContext, useState, useEffect } from "react";
-// 1. IMPORT FIREBASE SDK [cite: 2025-12-13]
 import { auth, googleProvider, signInWithPopup } from "../lib/firebase";
 
 const AuthContext = createContext(null);
@@ -8,7 +7,6 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Endpoint MockAPI untuk manajemen user [cite: 2025-12-26]
   const AUTH_API = "https://694615d7ed253f51719d04d2.mockapi.io/users";
 
   // 1. CEK SESI (Mengenali User saat refresh tab)
@@ -26,7 +24,7 @@ export const AuthProvider = ({ children }) => {
     checkSession();
   }, []);
 
-  // 2. FUNGSI LOGIN GOOGLE (Pendaftaran Otomatis)
+  // 2. FUNGSI LOGIN GOOGLE
   const loginWithGoogle = async () => {
     try {
       const result = await signInWithPopup(auth, googleProvider);
@@ -44,6 +42,7 @@ export const AuthProvider = ({ children }) => {
           orderStatus: "Belum Ada Pesanan",
           personalNotes: [], 
           adminMessage: "Selamat datang! Akun Anda diverifikasi via Google.",
+          managerBroadcast: "", // Inisialisasi field baru
           orderProduct: "",
           orderDate: new Date().toISOString()
         };
@@ -79,19 +78,43 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // 4. UPDATE DATA PESANAN (Admin/Staff)
+  // 4. UPDATE DATA PROFIL/USER (Universal)
+  const updateProfile = async (updates) => {
+    if (!user) return { success: false, message: "Sesi berakhir." };
+    try {
+      const response = await fetch(`${AUTH_API}/${user.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...user, ...updates }),
+      });
+      const updatedData = await response.json();
+      setUser(updatedData);
+      sessionStorage.setItem("admin_user", JSON.stringify(updatedData));
+      return { success: true };
+    } catch (error) {
+      return { success: false, message: error.message };
+    }
+  };
+
+  // 5. UPDATE DATA PESANAN (Admin/Staff)
   const updateUserOrder = async (userId, updateData) => {
     try {
+      const res = await fetch(`${AUTH_API}/${userId}`);
+      const targetData = await res.json();
+
       const response = await fetch(`${AUTH_API}/${userId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...updateData, orderDate: new Date().toISOString() }),
+        body: JSON.stringify({ 
+          ...targetData, 
+          ...updateData, 
+          orderDate: new Date().toISOString() 
+        }),
       });
       const data = await response.json();
       if (user?.id === userId) {
-        const merged = { ...user, ...data };
-        setUser(merged);
-        sessionStorage.setItem("admin_user", JSON.stringify(merged));
+        setUser(data);
+        sessionStorage.setItem("admin_user", JSON.stringify(data));
       }
       return { success: true };
     } catch (error) {
@@ -99,23 +122,48 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // 5. REFRESH DATA (Viewer)
+  // 6. REFRESH DATA
   const refreshUserData = async () => {
     if (!user) return;
     try {
       const response = await fetch(`${AUTH_API}/${user.id}`);
       const latestData = await response.json();
-      const updated = { ...user, ...latestData };
-      setUser(updated);
-      sessionStorage.setItem("admin_user", JSON.stringify(updated));
+      setUser(latestData);
+      sessionStorage.setItem("admin_user", JSON.stringify(latestData));
     } catch (e) { console.error(e); }
   };
 
   // ==========================================
-  // FITUR BARU: STICKY NOTES (LOGIKA EMBEDDED)
+  // FITUR BARU: BROADCAST & MESSAGING
   // ==========================================
 
-  // A. KIRIM NOTE (Manager -> Admin/Staff)
+  // A. BROADCAST MASSAL (Manager -> Seluruh User)
+  const broadcastMessage = async (message) => {
+    try {
+      const res = await fetch(AUTH_API);
+      const allUsers = await res.json();
+
+      // Transmisi Paralel: Mengirim PUT ke semua user sekaligus
+      const updatePromises = allUsers.map(u => 
+        fetch(`${AUTH_API}/${u.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...u, managerBroadcast: message })
+        })
+      );
+
+      await Promise.all(updatePromises);
+      
+      // Jika Manager juga termasuk dalam list, refresh state lokalnya
+      if (user) refreshUserData();
+      
+      return { success: true };
+    } catch (e) {
+      return { success: false, message: e.message };
+    }
+  };
+
+  // B. STICKY NOTES (Manager -> Personal Admin/Staff)
   const sendStickyNote = async (targetUserId, content, color = "yellow") => {
     try {
       const res = await fetch(`${AUTH_API}/${targetUserId}`);
@@ -129,7 +177,6 @@ export const AuthProvider = ({ children }) => {
         createdAt: new Date().toISOString()
       };
 
-      // PERBAIKAN: Pastikan personalNotes adalah array sebelum di-spread [cite: 2025-09-29]
       const oldNotes = Array.isArray(targetData.personalNotes) ? targetData.personalNotes : [];
       const updatedNotes = [...oldNotes, newNote];
 
@@ -144,11 +191,9 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // B. HAPUS NOTE (Admin/Staff membersihkan pesannya sendiri)
   const clearNote = async (noteId) => {
     if (!user) return;
     try {
-      // PERBAIKAN: Proteksi tipe data array pada filter [cite: 2025-11-02]
       const currentNotes = Array.isArray(user.personalNotes) ? user.personalNotes : [];
       const updatedNotes = currentNotes.filter(n => n.id !== noteId);
       
@@ -166,7 +211,7 @@ export const AuthProvider = ({ children }) => {
     } catch (e) { console.error(e); }
   };
 
-  // 6. LOGOUT
+  // 7. LOGOUT
   const logout = () => {
     setUser(null);
     sessionStorage.removeItem("admin_user");
@@ -174,7 +219,8 @@ export const AuthProvider = ({ children }) => {
 
   const value = {
     user, login, loginWithGoogle, logout, loading,
-    updateUserOrder, refreshUserData, sendStickyNote, clearNote,
+    updateUserOrder, updateProfile, refreshUserData, 
+    sendStickyNote, clearNote, broadcastMessage,
     isAuthenticated: !!user,
     isAdmin: user?.role?.toLowerCase() === "admin",
     isStaff: user?.role?.toLowerCase() === "staff",

@@ -10,7 +10,11 @@ import {
   History,
   Star,
   ShieldCheck,
-  Activity
+  Activity,
+  Tag,
+  Zap,
+  Percent,
+  Clock
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useProducts } from "../../hooks/useProducts";
@@ -24,6 +28,7 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
+import { cn } from "@/lib/utils";
 
 export default function ManagerDashboard() {
   const { user } = useAuth();
@@ -32,7 +37,6 @@ export default function ManagerDashboard() {
   const [userLoading, setUserLoading] = useState(true);
   const navigate = useNavigate();
 
-  // 1. Fetch Data User untuk Aktivitas & Analisis Tim [cite: 2025-11-02]
   useEffect(() => {
     const fetchSystemData = async () => {
       try {
@@ -50,16 +54,17 @@ export default function ManagerDashboard() {
 
   // --- LOGIKA MANAJERIAL (STRATEGIC INSIGHTS) ---
 
-  // A. Finansial & Inventaris [cite: 2025-09-29]
+  // A. Inventaris & Promo [cite: 2026-01-10]
   const totalValue = products.reduce((acc, p) => acc + (p.price || 0), 0);
   const outOfStock = products.filter(p => !p.isAvailable).length;
+  const promoProducts = products.filter(p => p.discountPercent > 0);
   
-  // B. Kualitas Layanan (Berdasarkan Struktur Data Baru) [cite: 2025-09-29]
+  // B. Kualitas Layanan [cite: 2025-09-29]
   const avgStoreRating = products.length > 0 
     ? (products.reduce((acc, p) => acc + (p.avgRating || 0), 0) / products.length).toFixed(1)
     : 0;
 
-  // C. Monitoring Pesanan Real-time (Filter User yang punya pesanan) [cite: 2025-12-13]
+  // C. Monitoring Pesanan Real-time [cite: 2025-12-13]
   const activeOrders = allUsers
     .filter(u => u.orderProduct && u.orderProduct !== "")
     .sort((a, b) => new Date(b.orderDate) - new Date(a.orderDate));
@@ -84,20 +89,20 @@ export default function ManagerDashboard() {
       {/* HEADER: COMMAND CENTER IDENTITY */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
         <div>
-          <div className="flex items-center gap-2 mb-2">
+          <div className="flex items-center gap-2 mb-2 text-left">
             <ShieldCheck className="text-indigo-600" size={20} />
             <span className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Authorized Manager Access</span>
           </div>
-          <h2 className="text-4xl font-black tracking-tighter uppercase italic text-slate-900 leading-none">
+          <h2 className="text-4xl font-black tracking-tighter uppercase italic text-slate-900 leading-none text-left">
             Strategic <span className="text-indigo-600">Console</span>
           </h2>
-          <p className="text-slate-500 text-sm mt-3 font-medium">
-            Halo <span className="text-slate-900 font-bold">{user?.name}</span>, integritas sistem TechStore terpantau <span className="text-emerald-600 font-bold italic">Optimal</span>.
+          <p className="text-slate-500 text-sm mt-3 font-medium text-left">
+            Logistik & Kampanye Promo Terpusat [cite: 2026-01-10].
           </p>
         </div>
         <div className="flex gap-3">
-          <Button variant="outline" className="rounded-2xl border-slate-200 h-12 px-6 font-bold" onClick={() => navigate("/manager/reports")}>
-            <BarChart3 className="mr-2 h-4 w-4 text-indigo-600" /> Analytics
+          <Button variant="outline" className="rounded-2xl border-slate-200 h-12 px-6 font-bold" onClick={() => navigate("/manager/promo")}>
+            <Tag className="mr-2 h-4 w-4 text-rose-600" /> Manage Promo
           </Button>
           <Button className="rounded-2xl bg-slate-900 hover:bg-indigo-600 h-12 px-6 shadow-xl shadow-slate-200 transition-all">
             System Audit
@@ -105,24 +110,26 @@ export default function ManagerDashboard() {
         </div>
       </div>
 
-      {/* KPI GRID: HIGH-LEVEL METRICS */}
+      {/* KPI GRID: UPGRADED WITH PROMO METRIC [cite: 2026-01-10] */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <QuickStatCard 
           title="Asset Value" 
           value={`Rp ${totalValue.toLocaleString('id-ID')}`} 
           icon={<TrendingUp size={18} className="text-emerald-500" />}
-          subText="Total nilai kapitalisasi produk"
+          subText="Nilai kapitalisasi aktif"
         />
         <QuickStatCard 
-          title="Customer Satisfaction" 
-          value={`${avgStoreRating} / 5.0`} 
-          icon={<Star size={18} className="text-amber-500" fill="currentColor" />}
-          subText="Rata-rata rating katalog"
+          title="Active Promos" 
+          value={promoProducts.length} 
+          icon={<Percent size={18} className="text-rose-500" />}
+          subText="Unit dalam kampanye diskon"
+          isAlert={promoProducts.length > 0}
+          alertColor="border-rose-100 ring-rose-50"
         />
         <QuickStatCard 
           title="Inventory Alert" 
           value={outOfStock} 
-          icon={<AlertOctagon size={18} className="text-red-500" />}
+          icon={<AlertOctagon size={18} className="text-amber-500" />}
           subText="Produk kehabisan stok"
           isAlert={outOfStock > 0}
         />
@@ -130,15 +137,15 @@ export default function ManagerDashboard() {
           title="Active Users" 
           value={allUsers.length} 
           icon={<Users size={18} className="text-blue-500" />}
-          subText="Total akun terdaftar di sistem"
+          subText="Total database personel"
         />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* OPERATIONAL FEED: REAL DATA FROM API */}
+        {/* OPERATIONAL FEED */}
         <Card className="lg:col-span-2 rounded-[3rem] border-none shadow-2xl shadow-slate-100 overflow-hidden bg-white">
-          <CardHeader className="bg-slate-50/50 border-b p-8">
+          <CardHeader className="bg-slate-50/50 border-b p-8 text-left">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-indigo-600 rounded-lg text-white">
@@ -153,20 +160,20 @@ export default function ManagerDashboard() {
             </div>
           </CardHeader>
           <CardContent className="p-0">
-            <ScrollArea className="h-[400px]">
+            <ScrollArea className="h-[450px]">
               {activeOrders.length === 0 ? (
                 <div className="p-20 text-center text-slate-400 italic">Tidak ada aktivitas pesanan saat ini.</div>
               ) : (
                 <div className="divide-y divide-slate-50">
                   {activeOrders.map((order) => (
-                    <div key={order.id} className="p-6 flex items-center justify-between hover:bg-indigo-50/30 transition-all cursor-default group">
+                    <div key={order.id} className="p-6 flex items-center justify-between hover:bg-indigo-50/30 transition-all group">
                       <div className="flex items-center gap-5">
-                        <Avatar className="h-12 w-12 border-2 border-white shadow-md group-hover:scale-110 transition-transform">
+                        <Avatar className="h-12 w-12 border-2 border-white shadow-md">
                           <AvatarFallback className="bg-slate-900 text-white font-black text-xs">
                             {order.name?.substring(0, 2).toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
-                        <div>
+                        <div className="text-left">
                           <p className="text-sm font-black text-slate-800 uppercase italic tracking-tight">{order.name}</p>
                           <div className="flex items-center gap-2 mt-1">
                             <ShoppingCart size={12} className="text-indigo-500" />
@@ -175,14 +182,12 @@ export default function ManagerDashboard() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <Badge className={`text-[9px] font-black uppercase rounded-full px-3 ${
+                        <Badge className={cn("text-[9px] font-black uppercase rounded-full px-3", 
                           order.orderStatus?.includes("Selesai") ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
-                        }`}>
+                        )}>
                           {order.orderStatus}
                         </Badge>
-                        <p className="text-[9px] text-slate-400 mt-2 font-bold uppercase tracking-tighter">
-                          {new Date(order.orderDate).toLocaleDateString('id-ID')}
-                        </p>
+                        <p className="text-[9px] text-slate-400 mt-2 font-bold uppercase">{new Date(order.orderDate).toLocaleDateString('id-ID')}</p>
                       </div>
                     </div>
                   ))}
@@ -192,10 +197,52 @@ export default function ManagerDashboard() {
           </CardContent>
         </Card>
 
-        {/* TEAM COMPOSITION & QUICK CONTROL */}
+        {/* PROMO MONITORING & TEAM COMPOSITION [cite: 2026-01-10] */}
         <div className="space-y-6">
+          {/* Promo Live Status */}
+          <Card className="rounded-[2.5rem] border-none shadow-2xl bg-rose-600 text-white p-8 relative overflow-hidden">
+            <div className="relative z-10 text-left">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-rose-200">Promo Monitoring</h3>
+                <Zap size={16} className="text-yellow-400 animate-pulse fill-current" />
+              </div>
+              
+              <ScrollArea className={cn(promoProducts.length > 0 ? "h-[180px]" : "h-auto")}>
+                {promoProducts.length === 0 ? (
+                  <p className="text-xs font-bold opacity-70 italic py-4">Tidak ada promo aktif saat ini [cite: 2026-01-10].</p>
+                ) : (
+                  <div className="space-y-4 pr-4">
+                    {promoProducts.map(p => (
+                      <div key={p.id} className="flex items-center justify-between bg-white/10 p-3 rounded-2xl border border-white/10">
+                        <div className="flex items-center gap-3">
+                           <div className="h-8 w-8 rounded-lg bg-white/20 flex items-center justify-center font-black text-[10px]">
+                              {p.discountPercent}%
+                           </div>
+                           <div className="text-left">
+                              <p className="text-[10px] font-black uppercase truncate max-w-[80px]">{p.name}</p>
+                              <p className="text-[8px] font-bold text-rose-200">ID: {p.id}</p>
+                           </div>
+                        </div>
+                        <Badge className="bg-white text-rose-600 text-[8px] font-black">ACTIVE</Badge>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </ScrollArea>
+
+              <Button 
+                onClick={() => navigate("/manager/promo")}
+                className="w-full mt-6 bg-white text-rose-600 hover:bg-rose-50 rounded-xl font-black text-[10px] uppercase tracking-widest h-11"
+              >
+                Launch New Campaign
+              </Button>
+            </div>
+            <Tag className="absolute -right-6 -bottom-6 text-white/5 w-32 h-32 rotate-12" />
+          </Card>
+
+          {/* Team Stats */}
           <Card className="rounded-[2.5rem] bg-slate-900 text-white border-none shadow-2xl p-8 relative overflow-hidden">
-            <div className="relative z-10">
+            <div className="relative z-10 text-left">
               <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-400 mb-6">Struktur Otoritas</h3>
               <div className="space-y-5">
                 <TeamRow label="Administrator" count={teamStats.admin} color="bg-rose-500" />
@@ -204,26 +251,9 @@ export default function ManagerDashboard() {
               </div>
               <Separator className="my-8 bg-white/10" />
               <div className="grid grid-cols-2 gap-3">
-                <ControlBtn label="Users" onClick={() => navigate("/admin/users")} />
-                <ControlBtn label="Stock" onClick={() => navigate("/admin")} />
+                <ControlBtn label="Users" onClick={() => navigate("/manager/authority")} />
+                <ControlBtn label="Inventory" onClick={() => navigate("/admin")} />
               </div>
-            </div>
-          </Card>
-
-          <Card className="rounded-[2.5rem] border-2 border-indigo-100 shadow-sm bg-white p-8 border-dashed">
-            <div className="flex items-center gap-2 mb-4">
-              <BarChart3 size={18} className="text-indigo-600" />
-              <h3 className="text-xs font-black uppercase tracking-widest">Inventory Health</h3>
-            </div>
-            <div className="space-y-4">
-              <div className="flex justify-between text-[10px] font-black uppercase">
-                <span className="text-slate-400">Available Ratio</span>
-                <span className="text-indigo-600">{((products.length - outOfStock) / products.length * 100).toFixed(0)}%</span>
-              </div>
-              <Progress value={((products.length - outOfStock) / products.length * 100)} className="h-2 bg-slate-100" />
-              <p className="text-[10px] leading-relaxed text-slate-500 font-medium italic">
-                Sistem mendeteksi <span className="text-indigo-600 font-bold">{products.length - outOfStock} produk siap jual</span>. Pastikan restock kategori populer.
-              </p>
             </div>
           </Card>
         </div>
@@ -232,19 +262,22 @@ export default function ManagerDashboard() {
   );
 }
 
-// --- SUB-KOMPONEN UNTUK KEBERSIHAN KODE ---
+// --- SUB-KOMPONEN ---
 
-function QuickStatCard({ title, value, icon, subText, isAlert }) {
+function QuickStatCard({ title, value, icon, subText, isAlert, alertColor = "border-amber-200 ring-amber-100" }) {
   return (
-    <Card className={`rounded-[2rem] border-slate-200/60 shadow-sm overflow-hidden transition-all hover:-translate-y-1 hover:shadow-xl bg-white ${isAlert ? 'border-red-200 ring-1 ring-red-100' : ''}`}>
-      <CardContent className="p-6">
-        <div className="flex justify-between items-start mb-6 text-left">
-          <div className="p-3 bg-slate-50 rounded-2xl text-slate-600 group-hover:bg-indigo-600 transition-colors">
+    <Card className={cn(
+      "rounded-[2rem] border-slate-200/60 shadow-sm overflow-hidden transition-all hover:-translate-y-1 hover:shadow-xl bg-white",
+      isAlert && cn("border-2 ring-1", alertColor)
+    )}>
+      <CardContent className="p-6 text-left">
+        <div className="flex justify-between items-start mb-6">
+          <div className="p-3 bg-slate-50 rounded-2xl text-slate-600">
             {icon}
           </div>
           <Badge variant="outline" className="text-[8px] font-black border-slate-100 tracking-widest uppercase">Metrics 2026</Badge>
         </div>
-        <div className="text-left">
+        <div>
           <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 mb-1">{title}</p>
           <h4 className="text-2xl font-black text-slate-900 tracking-tighter">{value}</h4>
           <p className="text-[10px] text-slate-500 font-medium italic mt-2">{subText}</p>
@@ -258,7 +291,7 @@ function TeamRow({ label, count, color }) {
   return (
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-3">
-        <div className={`w-2 h-2 rounded-full ${color}`} />
+        <div className={cn("w-2 h-2 rounded-full", color)} />
         <span className="text-xs font-bold text-slate-300">{label}</span>
       </div>
       <span className="text-xs font-black">{count}</span>

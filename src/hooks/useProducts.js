@@ -7,7 +7,7 @@ export const useProducts = () => {
 
   const API_URL = "https://694615d7ed253f51719d04d2.mockapi.io/products";
 
-  // 1. GET ALL
+  // 1. GET ALL (SANKURASI & SANITASI DATA PROMO)
   const fetchProducts = useCallback(async () => {
     try {
       setLoading(true);
@@ -15,11 +15,16 @@ export const useProducts = () => {
       if (!response.ok) throw new Error("Gagal mengambil data dari server.");
       const data = await response.json();
       
-      // Sanitasi Data: Pastikan reviews selalu berupa array saat diload [cite: 2026-01-08]
       const sanitizedData = data.map(p => ({
         ...p,
+        // Sanitasi dasar
         reviews: Array.isArray(p.reviews) ? p.reviews : [],
-        avgRating: p.avgRating || 0
+        avgRating: p.avgRating || 0,
+        // Sanitasi Logic Promo: Jika originalPrice belum ada, gunakan price saat ini [cite: 2025-11-02]
+        originalPrice: p.originalPrice || p.price,
+        discountPercent: p.discountPercent || 0,
+        promoStart: p.promoStart || "",
+        promoEnd: p.promoEnd || ""
       }));
       
       setProducts(sanitizedData);
@@ -43,7 +48,9 @@ export const useProducts = () => {
       return {
         ...data,
         reviews: Array.isArray(data.reviews) ? data.reviews : [],
-        avgRating: data.avgRating || 0
+        avgRating: data.avgRating || 0,
+        originalPrice: data.originalPrice || data.price,
+        discountPercent: data.discountPercent || 0
       };
     } catch (err) {
       console.error("Hook Error (Detail):", err.message);
@@ -53,52 +60,84 @@ export const useProducts = () => {
     }
   }, [API_URL]);
 
-  // 3. SUBMIT REVIEW (FITUR BARU) [cite: 2026-01-08, 2025-09-29]
-  const submitReview = async (productId, newReview) => {
+  // 3. PUT (Update Product - Universal)
+  const updateProduct = async (id, updatedData) => {
     try {
-      // Step A: Ambil data produk terbaru agar array reviews tidak tertimpa data lama
-      const response = await fetch(`${API_URL}/${productId}`);
-      if (!response.ok) throw new Error("Produk tidak ditemukan untuk diulas.");
-      const currentProduct = await response.json();
-
-      // Step B: Olah array reviews lama + baru
-      const oldReviews = Array.isArray(currentProduct.reviews) ? currentProduct.reviews : [];
-      const updatedReviews = [...oldReviews, { 
-        ...newReview, 
-        createdAt: new Date().toISOString() 
-      }];
-
-      // Step C: Hitung Average Rating Baru (Business Logic)
-      const totalRating = updatedReviews.reduce((acc, rev) => acc + rev.rating, 0);
-      const newAvgRating = parseFloat((totalRating / updatedReviews.length).toFixed(1));
-
-      // Step D: Kirim balik satu objek produk utuh (PUT) karena ini MockAPI gratisan
-      const updateResponse = await fetch(`${API_URL}/${productId}`, {
+      const response = await fetch(`${API_URL}/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...currentProduct,
-          reviews: updatedReviews,
-          avgRating: newAvgRating
-        }),
+        body: JSON.stringify(updatedData),
       });
-
-      if (!updateResponse.ok) throw new Error("Gagal mengirim ulasan.");
-      const finalProduct = await updateResponse.json();
-
-      // Step E: Sinkronisasi State Lokal agar UI berubah seketika
-      setProducts((prev) => 
-        prev.map((p) => (p.id === productId ? finalProduct : p))
-      );
-
-      return { success: true, data: finalProduct };
+      if (!response.ok) throw new Error("Gagal memperbarui produk.");
+      const updatedProduct = await response.json();
+      
+      // Sinkronisasi state lokal
+      setProducts((prev) => prev.map((p) => (p.id === id ? updatedProduct : p)));
+      return { success: true, data: updatedProduct };
     } catch (err) {
-      console.error("Review Error:", err.message);
       return { success: false, message: err.message };
     }
   };
 
-  // 4. DELETE
+  // 4. ACTIVATE PROMO (LOGIKA STRATEGIS MANAGER)
+  const activatePromo = async (productId, discount, startTime, endTime) => {
+    const product = products.find(p => p.id === productId);
+    if (!product) return { success: false, message: "Produk tidak ditemukan" };
+
+    // Kalkulasi Harga: (Harga Asli - Potongan)
+    const newPrice = Math.round(product.originalPrice - (product.originalPrice * (discount / 100)));
+
+    const payload = {
+      ...product, // Sebarkan data lama agar tidak hilang (reviews, dll)
+      price: newPrice,
+      discountPercent: parseInt(discount),
+      promoStart: startTime,
+      promoEnd: endTime
+    };
+
+    return await updateProduct(productId, payload);
+  };
+
+  // 5. RESET PRODUCT (KEMBALIKAN KE HARGA NORMAL)
+  const resetProductPrice = async (productId) => {
+    const product = products.find(p => p.id === productId);
+    if (!product) return { success: false };
+
+    const payload = {
+      ...product,
+      price: product.originalPrice,
+      discountPercent: 0,
+      promoStart: "",
+      promoEnd: ""
+    };
+    return await updateProduct(productId, payload);
+  };
+
+  // 6. SUBMIT REVIEW (SINKRONISASI DENGAN DATA PROMO)
+  const submitReview = async (productId, newReview) => {
+    try {
+      const response = await fetch(`${API_URL}/${productId}`);
+      if (!response.ok) throw new Error("Produk tidak ditemukan.");
+      const currentProduct = await response.json();
+
+      const oldReviews = Array.isArray(currentProduct.reviews) ? currentProduct.reviews : [];
+      const updatedReviews = [...oldReviews, { ...newReview, createdAt: new Date().toISOString() }];
+
+      const totalRating = updatedReviews.reduce((acc, rev) => acc + rev.rating, 0);
+      const newAvgRating = parseFloat((totalRating / updatedReviews.length).toFixed(1));
+
+      // Gunakan updateProduct untuk konsistensi
+      return await updateProduct(productId, {
+        ...currentProduct,
+        reviews: updatedReviews,
+        avgRating: newAvgRating
+      });
+    } catch (err) {
+      return { success: false, message: err.message };
+    }
+  };
+
+  // 7. DELETE
   const deleteProduct = async (id) => {
     try {
       const response = await fetch(`${API_URL}/${id}`, { method: "DELETE" });
@@ -110,7 +149,7 @@ export const useProducts = () => {
     }
   };
 
-  // 5. POST (Add Product)
+  // 8. POST (Add Product)
   const addProduct = async (newProduct) => {
     try {
       const response = await fetch(API_URL, {
@@ -118,30 +157,17 @@ export const useProducts = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...newProduct,
-          reviews: [], // Inisialisasi array kosong agar tidak error [cite: 2026-01-08]
+          originalPrice: newProduct.price, // Harga asli = Harga input awal [cite: 2025-11-02]
+          discountPercent: 0,
+          promoStart: "",
+          promoEnd: "",
+          reviews: [],
           avgRating: 0
         }),
       });
       if (!response.ok) throw new Error("Gagal menambah produk.");
       const addedProduct = await response.json();
       setProducts((prev) => [...prev, addedProduct]);
-      return { success: true };
-    } catch (err) {
-      return { success: false, message: err.message };
-    }
-  };
-
-  // 6. PUT (Update Product)
-  const updateProduct = async (id, updatedData) => {
-    try {
-      const response = await fetch(`${API_URL}/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updatedData),
-      });
-      if (!response.ok) throw new Error("Gagal memperbarui produk.");
-      const updatedProduct = await response.json();
-      setProducts((prev) => prev.map((p) => (p.id === id ? updatedProduct : p)));
       return { success: true };
     } catch (err) {
       return { success: false, message: err.message };
@@ -161,6 +187,8 @@ export const useProducts = () => {
     addProduct, 
     updateProduct, 
     getProductById,
-    submitReview // Ekspos fungsi baru ke komponen
+    submitReview,
+    activatePromo,   // Ekspos ke ManagerPromo.jsx
+    resetProductPrice // Ekspos untuk logika auto-reset
   };
 };

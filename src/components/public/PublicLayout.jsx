@@ -5,25 +5,24 @@ import { Button } from "@/components/ui/button";
 import { 
   Search, 
   LayoutDashboard, 
-  LogIn, 
   UserCircle, 
   LogOut, 
-  X, 
   Briefcase,
-  Instagram,    // Icon IG
-  Twitter,      // Icon Twitter
-  Facebook,     // Icon FB
-  Mail,         // Icon Email
-  Phone,        // Icon WA/Phone
-  MapPin        // Icon Lokasi
+  Instagram,
+  Twitter,
+  Facebook,
+  Mail,
+  Phone,
+  MapPin 
 } from "lucide-react"; 
 import { CATEGORIES } from "@/lib/constants"; 
 import { cn } from "@/lib/utils"; 
 
-// IMPORT AUTH & MODAL
+// IMPORT AUTH, MODAL & BANNER
 import { useAuth } from "../../contexts/AuthContext";
 import CartModal from "./CartModal"; 
 import OrderDetailModal from "./OrderDetailModal"; 
+import BroadcastBanner from "@/components/public/BroadcastBanner"; // Import Banner Siaran Global
 
 export default function PublicLayout() {
   const { user, isAuthenticated, isAdmin, isStaff, isManager, logout } = useAuth();
@@ -44,6 +43,10 @@ export default function PublicLayout() {
   return (
     <div className="flex flex-col min-h-screen bg-white font-sans selection:bg-blue-100 selection:text-blue-900">
       
+      {/* ================= GLOBAL BROADCAST SYSTEM ================= */}
+      {/* Banner ini akan otomatis muncul/hilang berdasarkan state managerBroadcast di user */}
+      <BroadcastBanner />
+
       {/* ================= HEADER ================= */}
       <header className="sticky top-0 z-50 w-full border-b border-slate-100 bg-white/70 backdrop-blur-xl transition-all duration-300">
         <div className="container mx-auto px-4 md:px-6">
@@ -59,7 +62,7 @@ export default function PublicLayout() {
                 {isAuthenticated && (
                   <div className="flex items-center gap-1.5 mt-1 animate-in fade-in duration-500">
                     <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-left">
                       Member: <span className="text-slate-900">{user?.name}</span>
                     </p>
                   </div>
@@ -182,7 +185,7 @@ export default function PublicLayout() {
               <ul className="space-y-4 text-sm font-bold">
                 <li><Link to="/" className="text-slate-400 hover:text-white transition-colors">Beranda</Link></li>
                 <li><Link to="#" className="text-slate-400 hover:text-white transition-colors">Katalog Produk</Link></li>
-                <li><Link to="#" className="text-slate-400 hover:text-white transition-colors">Promo Spesial</Link></li>
+                <li><Link to="/broadcast" className="text-slate-400 hover:text-white transition-colors">Promo Spesial</Link></li>
                 <li><Link to="#" className="text-slate-400 hover:text-white transition-colors">Tentang Kami</Link></li>
               </ul>
             </div>
@@ -195,7 +198,7 @@ export default function PublicLayout() {
                   <div className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center text-slate-400 group-hover:bg-green-600 group-hover:text-white transition-all">
                     <Phone size={14} />
                   </div>
-                  <a href="https://wa.me/6285524505684" target="_blank" className="text-sm font-bold text-slate-400 group-hover:text-white transition-colors uppercase tracking-widest">WhatsApp CS</a>
+                  <a href="https://wa.me/6285524505684" target="_blank" rel="noreferrer" className="text-sm font-bold text-slate-400 group-hover:text-white transition-colors uppercase tracking-widest">WhatsApp CS</a>
                 </li>
                 <li className="flex items-center gap-3 group cursor-pointer">
                   <div className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center text-slate-400 group-hover:bg-blue-600 group-hover:text-white transition-all">

@@ -1,13 +1,11 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { exportToCSV } from "../../utils/exportUtils";
-import { toast } from "sonner"; // [cite: 2025-12-24]
+import { toast } from "sonner"; 
 import { 
   UserCog, 
   ShieldCheck, 
-  ShieldAlert, 
   UserCheck, 
-  Eye, 
   Loader2, 
   RefreshCw,
   Download,
@@ -16,7 +14,7 @@ import {
   Zap,
   Globe,
   Lock,
-  Search
+  ArrowUpDown
 } from "lucide-react";
 import { 
   Table, 
@@ -35,8 +33,9 @@ export default function ManagerUserManagement() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const USERS_API = "https://694615d7ed253f51719d04d2.mockapi.io/users"; // [cite: 2025-12-26]
+  const USERS_API = "https://694615d7ed253f51719d04d2.mockapi.io/users"; 
 
+  // 1. Sinkronisasi Data Global [cite: 2025-12-26]
   const fetchUsers = async () => {
     setLoading(true);
     try {
@@ -55,9 +54,10 @@ export default function ManagerUserManagement() {
     fetchUsers();
   }, []);
 
-  // LOGIKA MANAJERIAL: Manager bisa mengatur semua kecuali dirinya sendiri [cite: 2025-09-29]
+  // 2. Logika Keamanan: Cegah Self-Demotion [cite: 2025-09-29]
   const canManage = (targetId) => targetId !== currentUser.id;
 
+  // 3. Mutasi Otoritas (RBAC - Role Based Access Control) [cite: 2025-11-02]
   const handleUpdateRole = async (targetUserId, targetUserName, newRole) => {
     toast.promise(
       async () => {
@@ -68,6 +68,7 @@ export default function ManagerUserManagement() {
         });
         if (!response.ok) throw new Error();
         
+        // Update State Lokal untuk sinkronisasi instan [cite: 2025-09-29]
         setUsers((prev) =>
           prev.map((u) => (u.id === targetUserId ? { ...u, role: newRole } : u))
         );
@@ -81,12 +82,13 @@ export default function ManagerUserManagement() {
             </span>
           </div>
         ),
-        success: `Akses ${targetUserName} Berhasil Dimutasi ke ${newRole.toUpperCase()}!`,
+        success: `Otoritas ${targetUserName} Berhasil Dimutasi ke ${newRole.toUpperCase()}!`,
         error: "Gagal Mengakses Server Otoritas.",
       }
     );
   };
 
+  // 4. Pelaporan Manajerial (Audit Trail) [cite: 2025-11-02]
   const handleExportUsers = () => {
     if (users.length === 0) return toast.warning("Data Kosong");
     const reportData = users.map(u => ({
@@ -97,10 +99,10 @@ export default function ManagerUserManagement() {
     }));
     const headers = ["Nama Lengkap", "Username", "Otoritas/Role", "ID User"];
     exportToCSV(reportData, `Laporan_Otoritas_${Date.now()}`, headers);
-    toast.success("Laporan Diekspor");
+    toast.success("Laporan Otoritas Telah Diekspor");
   };
 
-  // TAMPILAN LOADING TAKTIS (PULSE SHIELD) [cite: 2025-12-24, 2025-11-02]
+  // 5. Visual Loading Taktis [cite: 2025-12-24]
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-40 animate-in fade-in duration-1000">
@@ -111,7 +113,7 @@ export default function ManagerUserManagement() {
           </div>
         </div>
         <p className="text-[10px] font-black text-slate-900 uppercase tracking-[0.5em] ml-1">
-          Global Registry Sync
+          Global Registry Syncing...
         </p>
       </div>
     );
@@ -120,43 +122,43 @@ export default function ManagerUserManagement() {
   return (
     <div className="space-y-10 animate-in fade-in slide-in-from-bottom-6 duration-1000 text-left font-sans max-w-7xl mx-auto">
       
-      {/* EXECUTIVE HEADER [cite: 2025-12-24] */}
+      {/* EXECUTIVE COMMAND HEADER */}
       <div className="bg-slate-900 p-8 md:p-12 rounded-[2.5rem] md:rounded-[4rem] shadow-2xl border border-slate-800 relative overflow-hidden">
         <div className="relative z-10 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-8">
           <div>
-            <div className="flex items-center gap-3 mb-4">
+            <div className="flex items-center gap-3 mb-4 text-left">
               <Zap size={18} className="text-indigo-400 fill-current animate-pulse" />
-              <span className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-300">Authority Control</span>
+              <span className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-300">Management Intelligence</span>
             </div>
-            <h2 className="text-4xl md:text-5xl font-black text-white tracking-tighter uppercase italic leading-none">
-              Struktur <span className="text-indigo-500">Organisasi</span>
+            <h2 className="text-4xl md:text-5xl font-black text-white tracking-tighter uppercase italic leading-none text-left">
+              Otoritas <span className="text-indigo-500 text-left">Sistem</span>
             </h2>
-            <p className="text-slate-300 text-sm mt-6 font-medium max-w-md">Kendali mutlak atas hierarki unit operasional, promosi jabatan, dan manajemen hak akses global.</p>
+            <p className="text-slate-300 text-sm mt-6 font-medium max-w-md text-left leading-relaxed">Kendali hierarki operasional, pengaturan hak akses global, dan pengawasan unit kerja [cite: 2025-09-29].</p>
           </div>
           <div className="flex flex-wrap gap-4">
             <Button onClick={handleExportUsers} variant="outline" className="h-14 rounded-2xl border-white/10 bg-white/5 text-white font-black hover:bg-white/10 uppercase text-[10px] tracking-widest px-8 transition-all active:scale-95">
-               <Download size={18} className="mr-2" /> Export CSV
+               <Download size={18} className="mr-2 text-left" /> Export Data
             </Button>
             <Button onClick={fetchUsers} className="h-14 rounded-2xl bg-white text-slate-900 font-black hover:bg-indigo-500 hover:text-white uppercase text-[10px] tracking-widest px-8 shadow-xl transition-all active:scale-95 gap-3">
-              <RefreshCw size={18} className={loading ? "animate-spin" : ""} /> Sync Database
+              <RefreshCw size={18} className={cn("text-left", loading ? "animate-spin" : "")} /> Refresh Database
             </Button>
           </div>
         </div>
         <UserCog className="absolute -right-10 -bottom-10 text-white/5 w-64 h-64 rotate-12" />
       </div>
 
-      {/* AUTHORITY TABLE CONTAINER (RESPONSIVE) [cite: 2025-09-29] */}
+      {/* AUTHORITY DASHBOARD TABLE [cite: 2025-09-29] */}
       <div className="rounded-[3rem] border border-slate-200 bg-white shadow-2xl shadow-slate-200/60 overflow-hidden">
         <div className="overflow-x-auto custom-scrollbar">
           <Table className="min-w-[900px]">
-            <TableHeader className="bg-slate-50/80 border-b border-slate-200">
+            <TableHeader className="bg-slate-50/80 border-b border-slate-200 text-left">
               <TableRow>
-                <TableHead className="font-black text-[11px] uppercase tracking-widest text-slate-900 p-8">Identitas Pengguna</TableHead>
-                <TableHead className="font-black text-[11px] uppercase tracking-widest text-slate-900 p-8 text-center">Status Otoritas</TableHead>
-                <TableHead className="font-black text-[11px] uppercase tracking-widest text-slate-900 text-right p-8 pr-12">Modifikasi Role</TableHead>
+                <TableHead className="font-black text-[11px] uppercase tracking-widest text-slate-900 p-8 text-left">Personel & Kredensial</TableHead>
+                <TableHead className="font-black text-[11px] uppercase tracking-widest text-slate-900 p-8 text-center">Hierarki Saat Ini</TableHead>
+                <TableHead className="font-black text-[11px] uppercase tracking-widest text-slate-900 text-right p-8 pr-12">Manajemen Role</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody>
+            <TableBody className="text-left">
               {users.map((u) => (
                 <TableRow key={u.id} className="group hover:bg-slate-50 transition-all duration-300 border-b border-slate-100 last:border-none">
                   <TableCell className="p-8">
@@ -166,8 +168,8 @@ export default function ManagerUserManagement() {
                         {u.name?.charAt(0).toUpperCase()}
                       </div>
                       <div className="text-left">
-                        <p className="font-black text-slate-900 uppercase text-sm tracking-tight italic leading-tight">{u.name}</p>
-                        <p className="text-[10px] text-slate-900 font-bold uppercase tracking-tighter opacity-80 mt-1">@{u.username} • ID: {u.id}</p>
+                        <p className="font-black text-slate-900 uppercase text-sm tracking-tight italic leading-tight text-left">{u.name}</p>
+                        <p className="text-[10px] text-slate-900 font-bold uppercase tracking-tighter opacity-80 mt-1 text-left">ID: {u.id} • Username: {u.username}</p>
                       </div>
                     </div>
                   </TableCell>
@@ -189,7 +191,7 @@ export default function ManagerUserManagement() {
                           className="rounded-xl text-[9px] font-black h-11 px-5 bg-slate-900 text-white hover:bg-rose-600 shadow-xl border-none transition-all active:scale-95"
                           onClick={() => handleUpdateRole(u.id, u.name, "admin")}
                         >
-                          <ShieldCheck size={14} className="mr-2" /> PROMOTE ADMIN
+                          <Zap size={14} className="mr-2" /> SET ADMIN
                         </Button>
 
                         <Button
@@ -198,7 +200,7 @@ export default function ManagerUserManagement() {
                           className="rounded-xl text-[9px] font-black h-11 px-5 bg-white text-blue-700 border border-blue-200 hover:bg-blue-50 shadow-sm transition-all active:scale-95"
                           onClick={() => handleUpdateRole(u.id, u.name, "staff")}
                         >
-                          <UserCheck size={14} className="mr-2" /> ASSIGN STAFF
+                          <UserCheck size={14} className="mr-2" /> SET STAFF
                         </Button>
 
                         <Button
@@ -211,8 +213,8 @@ export default function ManagerUserManagement() {
                         </Button>
                       </div>
                     ) : (
-                      <div className="flex justify-end items-center gap-3 text-[10px] font-black text-slate-900 uppercase tracking-widest italic pr-6 opacity-100">
-                        <Lock size={16} className="text-indigo-600 animate-pulse" /> Master Terminal
+                      <div className="flex justify-end items-center gap-3 text-[10px] font-black text-slate-900 uppercase tracking-widest italic pr-6 opacity-100 text-right">
+                        <Lock size={16} className="text-indigo-600 animate-pulse text-left" /> Master Sytem Root
                       </div>
                     )}
                   </TableCell>
