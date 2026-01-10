@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../../contexts/AuthContext";
+import { toast } from "sonner"; // [cite: 2025-12-24]
 import { 
   StickyNote, 
   Send, 
@@ -11,7 +12,9 @@ import {
   Sparkles,
   Zap,
   CheckCircle2,
-  Palette
+  Palette,
+  ShieldCheck,
+  Search
 } from "lucide-react";
 
 // Import Shadcn UI
@@ -41,7 +44,6 @@ export default function ManageNotes() {
   const [content, setContent] = useState("");
   const [selectedColor, setSelectedColor] = useState("yellow");
 
-  // Opsi Warna Strategis [cite: 2025-09-29]
   const colorOptions = [
     { name: "yellow", class: "bg-amber-400", label: "General" },
     { name: "blue", class: "bg-blue-500", label: "Technical" },
@@ -55,8 +57,6 @@ export default function ManageNotes() {
       const res = await fetch("https://694615d7ed253f51719d04d2.mockapi.io/users");
       const data = await res.json();
       
-      // Filter: Ambil Admin & Staff, kecualikan diri sendiri (Manager)
-      // Logika SI: Memastikan Manager hanya mendelegasikan ke bawahannya [cite: 2025-11-02]
       const filteredTeam = data.filter(u => 
         (u.role?.toLowerCase().includes("admin") || u.role?.toLowerCase().includes("staff")) && u.id !== manager.id
       );
@@ -74,18 +74,30 @@ export default function ManageNotes() {
   }, []);
 
   const handleSend = async () => {
-    if (!targetId || !content) return alert("Mohon tentukan personil dan isi instruksi.");
-    
+    if (!targetId || !content) return toast.error("Data tidak lengkap!");
+
     setSending(true);
-    const result = await sendStickyNote(targetId, content, selectedColor);
-    
-    if (result.success) {
-      setContent("");
-      setTargetId("");
-      fetchTeam(); // Refresh Newsfeed Log
-    } else {
-      alert("Operasi Gagal: " + result.message);
-    }
+    // UPGRADE: Menggunakan toast.promise untuk feedback taktis [cite: 2025-12-24, 2025-09-29]
+    toast.promise(
+      sendStickyNote(targetId, content, selectedColor),
+      {
+        loading: (
+          <div className="flex items-center gap-3">
+            <Loader2 className="animate-spin text-indigo-600" size={16} />
+            <span className="font-black uppercase text-[10px] tracking-widest text-slate-900">
+              Mendelegasikan Instruksi Strategis...
+            </span>
+          </div>
+        ),
+        success: () => {
+          setContent("");
+          setTargetId("");
+          fetchTeam();
+          return "Instruksi Berhasil Ditransmisikan!";
+        },
+        error: "Gagal Menghubungi Terminal Target.",
+      }
+    );
     setSending(false);
   };
 
@@ -99,6 +111,28 @@ export default function ManageNotes() {
       targetUsername: u.username 
     }));
   }).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  // UPGRADE: Visual Full Page Loading "Tactical Pulse" [cite: 2025-12-24, 2025-11-02]
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-40 animate-in fade-in duration-1000">
+        <div className="relative mb-8">
+          <div className="absolute inset-0 bg-indigo-500/20 rounded-full animate-ping scale-150"></div>
+          <div className="relative h-20 w-20 rounded-3xl bg-slate-900 flex items-center justify-center text-indigo-400 shadow-2xl border border-white/10">
+            <Sparkles size={40} className="animate-pulse" />
+          </div>
+        </div>
+        <div className="text-center space-y-2">
+          <p className="text-[10px] font-black text-slate-900 uppercase tracking-[0.5em] ml-1">
+            Retrieving Tactical Data
+          </p>
+          <div className="h-1 w-48 bg-slate-100 rounded-full overflow-hidden mx-auto">
+            <div className="h-[2px] bg-indigo-600 w-full animate-pulse"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-10 animate-in fade-in slide-in-from-bottom-6 duration-1000 text-left font-sans max-w-7xl mx-auto">
@@ -115,16 +149,15 @@ export default function ManageNotes() {
           </h2>
           <p className="text-slate-400 text-sm mt-4 font-medium max-w-lg">Alokasikan tugas dan catatan strategis kepada unit Admin dan Staff operasional secara personal.</p>
         </div>
-        {/* Decorative Background Icon */}
         <StickyNote className="absolute -right-10 -bottom-10 text-white/5 w-64 h-64 -rotate-12" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         
-        {/* LEFT COLUMN: CONTROL INTERFACE (4 Cols) */}
+        {/* LEFT COLUMN: CONTROL INTERFACE */}
         <div className="lg:col-span-4 space-y-6">
           <Card className="rounded-[2.5rem] border-none shadow-xl shadow-slate-100 bg-white overflow-hidden">
-            <CardHeader className="p-8 pb-0">
+            <CardHeader className="p-8 pb-0 text-left">
               <div className="flex items-center gap-3 mb-2">
                  <div className="p-2 bg-indigo-50 rounded-xl text-indigo-600">
                     <Zap size={20} fill="currentColor" />
@@ -135,14 +168,13 @@ export default function ManageNotes() {
             </CardHeader>
 
             <CardContent className="p-8 space-y-8">
-              {/* Target Selection */}
               <div className="space-y-3">
                 <label className="text-[11px] font-black uppercase tracking-widest text-slate-500 ml-1 flex items-center gap-2">
                    <UserCheck size={14} /> Penerima Tugas
                 </label>
                 <Select onValueChange={setTargetId} value={targetId}>
                   <SelectTrigger className="h-16 rounded-2xl border-slate-100 bg-slate-50 font-black uppercase text-[11px] tracking-wider focus:ring-indigo-600 shadow-inner">
-                    <SelectValue placeholder={loading ? "SINKRONISASI..." : "PILIH PERSONIL"} />
+                    <SelectValue placeholder="PILIH PERSONIL" />
                   </SelectTrigger>
                   <SelectContent className="rounded-2xl shadow-2xl border-slate-100 z-[100] p-2">
                     {users.map((u) => (
@@ -162,7 +194,6 @@ export default function ManageNotes() {
                 </Select>
               </div>
 
-              {/* Color Selection [cite: 2025-09-29] */}
               <div className="space-y-3">
                 <label className="text-[11px] font-black uppercase tracking-widest text-slate-500 ml-1 flex items-center gap-2">
                    <Palette size={14} /> Kode Warna Urgensi
@@ -184,7 +215,6 @@ export default function ManageNotes() {
                 </div>
               </div>
 
-              {/* Message Input */}
               <div className="space-y-3">
                 <label className="text-[11px] font-black uppercase tracking-widest text-slate-500 ml-1 flex items-center gap-2">
                    <StickyNote size={14} /> Briefing Strategis
@@ -209,10 +239,10 @@ export default function ManageNotes() {
           </Card>
         </div>
 
-        {/* RIGHT COLUMN: DELEGATION FEED (8 Cols) */}
+        {/* RIGHT COLUMN: DELEGATION FEED */}
         <div className="lg:col-span-8">
           <Card className="rounded-[3rem] border-none shadow-xl shadow-slate-100 bg-white overflow-hidden h-full flex flex-col">
-            <CardHeader className="bg-slate-50/50 p-10 border-b border-slate-100 flex flex-row items-center justify-between">
+            <CardHeader className="bg-slate-50/50 p-10 border-b border-slate-100 flex flex-row items-center justify-between text-left">
               <div className="flex items-center gap-4">
                  <div className="p-3 bg-white rounded-2xl shadow-sm text-indigo-600 border border-slate-100">
                     <Users size={24} />
@@ -260,15 +290,13 @@ export default function ManageNotes() {
                           </div>
                         </div>
                         
-                        <div className="relative p-6 bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+                        <div className="relative p-6 bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden text-left">
                            <div className={cn("absolute left-0 top-0 bottom-0 w-1.5 shadow-[0_0_15px_rgba(0,0,0,0.1)]", 
                               colorOptions.find(o => o.name === note.color)?.class || "bg-amber-400")}></div>
                            <p className="text-base text-slate-600 font-medium leading-relaxed pl-4 italic">
                               "{note.content}"
                            </p>
                         </div>
-
-                        {/* Status Chip */}
                         <div className="absolute top-6 right-8 opacity-0 group-hover:opacity-100 transition-opacity">
                             <Badge className="bg-indigo-600 text-white text-[8px] font-black uppercase">Monitor Active</Badge>
                         </div>

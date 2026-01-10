@@ -11,15 +11,21 @@ import UserManagement from "./pages/admin/UserManagement";
 import OrderManagement from "./pages/admin/OrderManagement"; 
 import ProtectedRoute from "./components/ProtectedRoute"; 
 
-// IMPORT HALAMAN BARU UNTUK 404 [cite: 2025-12-30]
+// IMPORT TOASTER DARI SONNER
+import { Toaster } from "@/components/ui/sonner";
+
+// IMPORT HALAMAN BARU UNTUK 404
 import NotFound from "./pages/public/NotFound"; 
 
 // IMPORT HALAMAN MANAGER
 import ManagerDashboard from "./pages/manager/ManagerDashboard";
 import AnalyticsReport from "./pages/manager/AnalyticsReport";
 
-// LANGKAH 1: IMPORT HALAMAN MANAJEMEN NOTE [cite: 2025-09-29]
+// IMPORT HALAMAN MANAJEMEN NOTE
 import ManageNotes from "./pages/manager/ManageNotes";
+
+// LANGKAH 1: IMPORT HALAMAN OTORITAS KHUSUS MANAGER
+import ManagerUserManagement from "./pages/manager/ManagerUserManagement";
 
 // PROVIDER & HOOKS
 import { CartProvider } from "./contexts/CartContext"; 
@@ -139,6 +145,9 @@ function App() {
   return (
     <CartProvider>
       <Router>
+        {/* PENEMPATAN TOASTER UNTUK NOTIFIKASI GLOBAL */}
+        <Toaster position="top-right" richColors closeButton />
+
         <Routes>
           {/* 1. SISI PUBLIK */}
           <Route element={<PublicLayout />}>
@@ -187,11 +196,13 @@ function App() {
           >
             <Route index element={<ManagerDashboard />} />
             <Route path="reports" element={<AnalyticsReport />} />
-            {/* PENAMBAHAN RUTE MANAGE NOTES [cite: 2025-09-29] */}
             <Route path="notes" element={<ManageNotes />} />
+            
+            {/* PENAMBAHAN RUTE OTORITAS MANAJERIAL */}
+            <Route path="authority" element={<ManagerUserManagement />} />
           </Route>
 
-          {/* 4. CATCH-ALL ROUTE (404 NOT FOUND) [cite: 2025-12-30] */}
+          {/* 4. CATCH-ALL ROUTE (404 NOT FOUND) */}
           <Route path="*" element={<NotFound />} /> 
         </Routes>
       </Router>
