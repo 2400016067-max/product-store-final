@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom"; 
@@ -6,16 +6,20 @@ import { Eye, Star, Zap, TrendingDown, Clock, Sparkles, BoxSelect } from "lucide
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
-// IMPORT LOGIKA WAKTU PROMO [cite: 2026-01-10]
+// IMPORT LOGIKA WAKTU PROMO
 import { usePromo } from "../../hooks/usePromo";
 
 export default function ProductCard({ product }) {
   const isPromoExpired = usePromo(product.promoEnd);
-  const isPromoActive = product.discountPercent > 0 && !isPromoExpired;
   
+  // DERIVED STATE: Menggunakan useMemo untuk efisiensi kalkulasi render
+  const isPromoActive = useMemo(() => {
+    return product.discountPercent > 0 && !isPromoExpired && product.isAvailable;
+  }, [product.discountPercent, isPromoExpired, product.isAvailable]);
+
   const [timeLeft, setTimeLeft] = useState("");
 
-  // LOGIKA COUNTDOWN: Memberikan tekanan psikologis real-time [cite: 2025-09-29, 2026-01-10]
+  // LOGIKA COUNTDOWN PRECISION: Memberikan tekanan psikologis real-time
   useEffect(() => {
     if (!isPromoActive) return;
 
@@ -25,18 +29,28 @@ export default function ProductCard({ product }) {
 
       const hours = Math.floor(diff / (1000 * 60 * 60));
       const minutes = Math.floor((diff / 1000 / 60) % 60);
+      const seconds = Math.floor((diff / 1000) % 60);
 
-      if (hours > 0) return setTimeLeft(`${hours}j ${minutes}m`);
-      return setTimeLeft(`${minutes}m`);
+      // Upgrade: Tampilkan detik jika waktu di bawah 1 jam untuk meningkatkan urgensi (FOMO)
+      if (hours === 0) return setTimeLeft(`${minutes}m ${seconds}s`);
+      return setTimeLeft(`${hours}j ${minutes}m`);
     };
 
     calculateTime();
-    const timer = setInterval(calculateTime, 60000); // Sinkronisasi tiap menit [cite: 2026-01-10]
+    // Interval 1 detik untuk presisi tinggi pada promo aktif
+    const timer = setInterval(calculateTime, 1000); 
     return () => clearInterval(timer);
   }, [product.promoEnd, isPromoActive]);
 
   const hasReviews = product.reviews && product.reviews.length > 0;
   const isTopRated = product.avgRating >= 4.5;
+
+  // Formatter Mata Uang Rupiah yang Standar
+  const formatIDR = (price) => new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    minimumFractionDigits: 0
+  }).format(price);
 
   return (
     <Card className={cn(
@@ -46,10 +60,10 @@ export default function ProductCard({ product }) {
         : "opacity-80 grayscale-[0.3] shadow-none border-slate-50"
     )}>
       
-      {/* 1. MEDIA & OVERLAY SECTION [cite: 2026-01-10] */}
+      {/* 1. MEDIA & OVERLAY SECTION */}
       <div className="relative h-72 w-full overflow-hidden bg-slate-50">
         
-        {/* SOLD OUT OVERLAY: Memastikan user tidak melakukan spekulasi pada stok kosong [cite: 2026-01-10] */}
+        {/* SOLD OUT OVERLAY */}
         {!product.isAvailable && (
           <div className="absolute inset-0 z-30 flex items-center justify-center bg-slate-900/60 backdrop-blur-[3px] animate-in fade-in duration-500">
             <div className="bg-white px-6 py-3 rounded-2xl shadow-2xl transform -rotate-12 border-2 border-slate-200 flex items-center gap-3">
@@ -68,8 +82,8 @@ export default function ProductCard({ product }) {
           </Badge>
         </div>
 
-        {/* STRATEGIC PROMO BADGE: Desain Gradient High-Contrast [cite: 2026-01-10] */}
-        {isPromoActive && product.isAvailable && (
+        {/* STRATEGIC PROMO BADGE */}
+        {isPromoActive && (
           <div className="absolute top-16 left-5 z-20 flex flex-col gap-2 animate-in slide-in-from-left duration-500">
             <Badge className="bg-gradient-to-r from-rose-600 to-orange-500 text-white border-none px-4 py-2 text-[11px] font-black uppercase tracking-tighter rounded-xl shadow-[0_10px_20px_rgba(225,29,72,0.4)] flex items-center gap-2 group-hover:scale-110 transition-transform">
               <TrendingDown size={14} className="animate-bounce" />
@@ -94,7 +108,6 @@ export default function ProductCard({ product }) {
           </div>
         )}
 
-        {/* Product Image */}
         <img 
           src={product.image} 
           alt={product.name} 
@@ -109,7 +122,7 @@ export default function ProductCard({ product }) {
       </div>
       
       {/* 2. CONTENT SECTION */}
-      <CardHeader className="flex-grow pt-8 px-8 pb-3">
+      <CardHeader className="flex-grow pt-8 px-8 pb-3 text-left">
         <div className="flex items-center gap-3 mb-4">
           <div className="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-100 shadow-inner">
             <Star size={10} className="text-amber-400" fill="currentColor" />
@@ -131,42 +144,41 @@ export default function ProductCard({ product }) {
         </CardTitle>
       </CardHeader>
 
-      <CardContent className="px-8 pb-6">
+      <CardContent className="px-8 pb-6 text-left">
         <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest line-clamp-2 mb-6 leading-relaxed opacity-70 group-hover:opacity-100 transition-opacity">
           {product.description}
         </p>
         
-        {/* PRICE DISPLAY: Transparansi Nilai Investasi [cite: 2026-01-10] */}
+        {/* PRICE DISPLAY */}
         <div className="flex items-end justify-between">
-          <div className="flex flex-col text-left">
+          <div className="flex flex-col">
             <span className={cn(
                 "text-[8px] font-black uppercase tracking-[0.3em] mb-1 transition-colors",
-                isPromoActive && product.isAvailable ? "text-rose-600 animate-pulse" : "text-indigo-600",
+                isPromoActive ? "text-rose-600 animate-pulse" : "text-indigo-600",
                 !product.isAvailable && "text-slate-400 opacity-50"
             )}>
-              {isPromoActive && product.isAvailable ? "Strategic Limited Offer" : "Market Price"}
+              {isPromoActive ? "Strategic Limited Offer" : "Market Price"}
             </span>
             
             <div className="flex flex-col">
-              {isPromoActive && product.isAvailable && (
+              {isPromoActive && (
                 <span className="text-xs font-bold text-slate-400 line-through tracking-tighter mb-1 opacity-60">
-                  Rp {product.originalPrice?.toLocaleString("id-ID")}
+                  {formatIDR(product.originalPrice)}
                 </span>
               )}
               <div className={cn(
                 "font-black text-3xl tracking-tighter italic leading-none transition-all duration-300",
-                isPromoActive && product.isAvailable ? "text-rose-600 scale-105 origin-left" : "text-slate-900",
+                isPromoActive ? "text-rose-600 scale-105 origin-left" : "text-slate-900",
                 !product.isAvailable && "text-slate-400"
               )}>
-                <span className="text-sm align-top mr-1">Rp</span>
-                {product.price?.toLocaleString("id-ID")}
+                {formatIDR(product.price)}
               </div>
             </div>
           </div>
         </div>
       </CardContent>
 
-      {/* 3. ACTION SECTION [cite: 2025-09-29] */}
+      {/* 3. ACTION SECTION */}
       <CardFooter className="px-8 pb-8 pt-0 mt-auto">
         <Link to={`/detail/${product.id}`} className={cn("w-full", !product.isAvailable && "pointer-events-none")}>
           <Button 

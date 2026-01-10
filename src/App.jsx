@@ -1,6 +1,6 @@
 import { HashRouter as Router, Routes, Route, Navigate, useOutletContext } from "react-router-dom";
-import { useEffect } from "react"; // Tambahan untuk Auto-Reset Logic
-import { toast } from "sonner"; // Upgrade alert ke toast
+import { useEffect } from "react"; 
+import { toast } from "sonner"; 
 
 import PublicLayout from "./components/public/PublicLayout";
 import AdminLayout from "./components/admin/AdminLayout";
@@ -9,18 +9,17 @@ import ProductTable from "./components/admin/ProductTable";
 import ProductDetail from "./pages/public/ProductDetail"; 
 import AddProductModal from "./components/admin/AddProductModal";
 import Login from "./pages/admin/Login"; 
+// --- PENAMBAHAN REGISTER ---
+import Register from "./pages/admin/Register"; 
+// ---------------------------
 import ProductCard from "./components/public/ProductCard";
 import UserManagement from "./pages/admin/UserManagement"; 
 import OrderManagement from "./pages/admin/OrderManagement"; 
 import ProtectedRoute from "./components/ProtectedRoute"; 
 
-// IMPORT TOASTER DARI SONNER
 import { Toaster } from "@/components/ui/sonner";
-
-// IMPORT HALAMAN BARU UNTUK 404
 import NotFound from "./pages/public/NotFound"; 
 
-// IMPORT HALAMAN MANAGER
 import ManagerDashboard from "./pages/manager/ManagerDashboard";
 import AnalyticsReport from "./pages/manager/AnalyticsReport";
 import ManageNotes from "./pages/manager/ManageNotes";
@@ -29,7 +28,6 @@ import ManagerUserManagement from "./pages/manager/ManagerUserManagement";
 // LANGKAH 1: IMPORT HALAMAN PROMO STRATEGIS
 import ManagerPromo from "./pages/manager/ManagerPromo";
 
-// PROVIDER & HOOKS
 import { CartProvider } from "./contexts/CartContext"; 
 import { useProducts } from "./hooks/useProducts"; 
 import { useAuth } from "./contexts/AuthContext"; 
@@ -114,10 +112,9 @@ function App() {
         const now = new Date();
         const end = p.promoEnd ? new Date(p.promoEnd) : null;
         
-        // Jika waktu sekarang melewati promoEnd dan diskon masih aktif di database
         if (end && now > end && p.discountPercent > 0) {
           await resetProductPrice(p.id);
-          console.log(`System: Promo for ${p.name} has expired. Logic Guardian has reset the price.`);
+          console.log(`System: Promo for ${p.name} has expired.`);
           toast.info(`Info Sistem: Promo ${p.name} telah berakhir.`);
         }
       });
@@ -175,6 +172,7 @@ function App() {
           </Route>
 
           <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} /> 
 
           {/* 2. JALUR ADMIN & STAFF */}
           <Route 

@@ -4,13 +4,13 @@ import { useAuth } from "../../contexts/AuthContext";
 import { toast } from "sonner";
 import { 
   Tag, Clock, Send, Package, Percent, Zap, Sparkles, 
-  ShieldCheck, AlertCircle, TrendingDown, MessageSquare, Edit3, Eye
+  ShieldCheck, AlertCircle, TrendingDown, MessageSquare, Edit3, Eye, Trash2
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea"; // Pastikan sudah install shadcn textarea
-import { Switch } from "@/components/ui/switch"; // Pastikan sudah install shadcn switch
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { 
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue 
@@ -28,6 +28,7 @@ export default function ManagerPromo() {
   const [customMessage, setCustomMessage] = useState("");
 
   const selectedProduct = products.find(p => p.id === selectedId);
+  const activePromos = products.filter(p => p.discountPercent > 0);
 
   // Generate Auto Message Logic
   useEffect(() => {
@@ -49,15 +50,12 @@ export default function ManagerPromo() {
 
     toast.promise(
       async () => {
-        // 1. Mutasi Data Produk
         await updateProduct(selectedId, {
           price: discountPrice,
           discountPercent: parseInt(discount),
           promoStart: startTime,
           promoEnd: endTime
         });
-
-        // 2. Transmisi Pesan Siaran (Pesan yang sudah di-custom atau auto)
         await broadcastMessage(customMessage);
       },
       {
@@ -69,6 +67,53 @@ export default function ManagerPromo() {
         ),
         success: "Kampanye Promo Berhasil Diaktivasi Global!",
         error: "Kegagalan Sistem: Gagal mengeksekusi perintah promo.",
+      }
+    );
+  };
+
+  // FITUR TERBARU: TERMINASI PROMO TUNGGAL [cite: 2026-01-10]
+  const handleTerminatePromo = async (productId) => {
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+
+    toast.promise(
+      async () => {
+        await updateProduct(productId, {
+          price: product.originalPrice,
+          discountPercent: 0,
+          promoStart: null,
+          promoEnd: new Date().toISOString()
+        });
+        await broadcastMessage(`SISTEM ALERT: PROMO UNTUK ${product.name.toUpperCase()} TELAH BERAKHIR. HARGA KEMBALI NORMAL.`);
+      },
+      {
+        loading: "Mengeksekusi Terminasi...",
+        success: `${product.name} Kembali ke Harga Normal!`,
+        error: "Gagal menghentikan promo.",
+      }
+    );
+  };
+
+  // FITUR TERBARU: GLOBAL TERMINATION [cite: 2026-01-10]
+  const handleTerminateAll = async () => {
+    if (!window.confirm("PERINGATAN STRATEGIS: Hentikan SEMUA promo aktif sekarang?")) return;
+
+    toast.promise(
+      async () => {
+        for (const p of activePromos) {
+          await updateProduct(p.id, {
+            price: p.originalPrice,
+            discountPercent: 0,
+            promoStart: null,
+            promoEnd: new Date().toISOString()
+          });
+        }
+        await broadcastMessage("SISTEM ALERT: SELURUH PROMO GLOBAL TELAH DIAKHIRI. HARGA KEMBALI NORMAL.");
+      },
+      {
+        loading: "Memulihkan Harga Global...",
+        success: "Seluruh Promo Berhasil Dihentikan!",
+        error: "Gagal menghentikan seluruh promo.",
       }
     );
   };
@@ -186,12 +231,59 @@ export default function ManagerPromo() {
             >
               <Send size={20} /> Deploy Strategic Promo
             </Button>
+
+            {/* SECTION TERBARU: ACTIVE DEPLOYMENT CONTROL [cite: 2026-01-10] */}
+            <div className="mt-12 pt-10 border-t border-slate-100">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <AlertCircle className="text-rose-600" size={18} />
+                  <h3 className="text-[11px] font-black uppercase tracking-widest text-slate-900">Active Campaign Monitor</h3>
+                </div>
+                {activePromos.length > 0 && (
+                  <Button 
+                    variant="ghost" 
+                    onClick={handleTerminateAll}
+                    className="h-8 rounded-full text-[9px] font-black text-rose-600 hover:bg-rose-50 uppercase tracking-widest gap-2"
+                  >
+                    <Trash2 size={12} /> Global Restoration
+                  </Button>
+                )}
+              </div>
+              
+              <div className="grid grid-cols-1 gap-4">
+                {activePromos.map(p => (
+                  <div key={p.id} className="group flex items-center justify-between p-5 bg-slate-50 hover:bg-rose-50 rounded-[1.5rem] border border-slate-100 transition-all duration-300">
+                    <div className="text-left">
+                      <p className="text-[10px] font-black text-slate-900 uppercase tracking-tighter group-hover:text-rose-700 transition-colors">{p.name}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-[9px] font-black text-rose-500 uppercase italic bg-white px-2 py-0.5 rounded-md border border-rose-100 shadow-sm">
+                          -{p.discountPercent}% OFF
+                        </span>
+                        <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest leading-none">ID: {p.id}</span>
+                      </div>
+                    </div>
+                    <Button 
+                      size="sm" 
+                      onClick={() => handleTerminatePromo(p.id)}
+                      className="h-10 rounded-xl bg-slate-900 hover:bg-rose-600 text-white text-[9px] font-black uppercase tracking-widest px-5 shadow-lg border-none"
+                    >
+                      Force Stop
+                    </Button>
+                  </div>
+                ))}
+                {activePromos.length === 0 && (
+                  <div className="p-10 rounded-[2rem] border-2 border-dashed border-slate-100 bg-slate-50/50 flex flex-col items-center gap-3">
+                    <Zap size={20} className="text-slate-200" />
+                    <p className="text-[10px] font-bold text-slate-400 uppercase italic tracking-widest">Tidak ada deployment aktif terdeteksi.</p>
+                  </div>
+                )}
+              </div>
+            </div>
           </CardContent>
         </Card>
 
         {/* RIGHT: LIVE IMPACT PREVIEW */}
         <div className="lg:col-span-5 space-y-6">
-          {/* Price Preview Card */}
           <Card className="rounded-[2.5rem] bg-indigo-600 text-white border-none p-8 shadow-2xl relative overflow-hidden">
              <div className="relative z-10 space-y-6">
                 <div className="flex items-center gap-3">
@@ -223,7 +315,6 @@ export default function ManagerPromo() {
              <Sparkles className="absolute -right-6 -top-6 w-32 h-32 text-white/10" />
           </Card>
 
-          {/* Broadcast Preview */}
           <Card className="rounded-[2.5rem] bg-white border border-slate-100 p-8 shadow-xl">
              <div className="space-y-6">
                 <div className="flex items-center gap-3">

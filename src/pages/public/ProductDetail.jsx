@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom"; 
 import { useProducts } from "../../hooks/useProducts";
 import { useCart } from "../../contexts/CartContext"; 
@@ -13,24 +13,23 @@ import {
   ShoppingCart, 
   Star, 
   ShieldCheck, 
-  Zap, 
   Layers, 
   Info,
   Clock,
-  TrendingDown,
   Sparkles
 } from "lucide-react";
 import { cn } from "@/lib/utils"; 
 
-// IMPORT LOGIKA STRATEGIS [cite: 2026-01-10]
+// STRATEGIC LOGIC IMPORTS
 import { usePromo } from "../../hooks/usePromo";
-import RatingStars from "../../components/ui/RatingStars";
 import ReviewSection from "../../components/ui/ReviewSection";
 
 export default function ProductDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation(); 
+  
+  // Destructuring hooks dengan pengamanan
   const { getProductById, submitReview } = useProducts();
   const { addToCart } = useCart(); 
   const { isAuthenticated } = useAuth(); 
@@ -39,81 +38,115 @@ export default function ProductDetail() {
   const [isLocalLoading, setIsLocalLoading] = useState(true);
   const [timeLeft, setTimeLeft] = useState("");
 
-  // 1. Validasi Status Promo [cite: 2026-01-10]
+  // 1. Validasi Status Promo & Memoization
   const isPromoExpired = usePromo(product?.promoEnd);
-  const isPromoActive = product?.discountPercent > 0 && !isPromoExpired;
+  const isPromoActive = useMemo(() => 
+    product?.discountPercent > 0 && !isPromoExpired, 
+    [product?.discountPercent, isPromoExpired]
+  );
 
+  // 2. Data Fetching dengan Scroll Restoration
   useEffect(() => {
+    let isMounted = true;
     const loadProduct = async () => {
       try {
         setIsLocalLoading(true);
         const rawData = await getProductById(id);
-        let cleanData = Array.isArray(rawData) ? (rawData.length > 0 ? rawData[0] : null) : rawData;
-        setProduct(cleanData);
+        
+        if (isMounted) {
+          // Normalisasi data: menangani jika return berupa array atau object tunggal
+          const cleanData = Array.isArray(rawData) ? (rawData[0] || null) : rawData;
+          setProduct(cleanData);
+          window.scrollTo(0, 0); // User Experience: Reset scroll ke atas
+        }
       } catch (err) {
-        console.error("Kesalahan Sinkronisasi Data:", err);
+        console.error("Critical Sync Error:", err);
       } finally {
-        setIsLocalLoading(false);
+        if (isMounted) setIsLocalLoading(false);
       }
     };
+
     loadProduct();
+    return () => { isMounted = false; };
   }, [id, getProductById]);
 
-  // 2. Logika Countdown Detail [cite: 2026-01-10]
+  // 3. Optimized Countdown Timer
   useEffect(() => {
-    if (!isPromoActive) return;
+    if (!isPromoActive || !product?.promoEnd) return;
 
     const calculateTime = () => {
-      const diff = new Date(product.promoEnd) - new Date();
-      if (diff <= 0) return setTimeLeft("EXPIRED");
+      const diff = new Date(product.promoEnd).getTime() - new Date().getTime();
+      
+      if (diff <= 0) {
+        setTimeLeft("EXPIRED");
+        return;
+      }
+
       const hours = Math.floor(diff / (1000 * 60 * 60));
       const minutes = Math.floor((diff / 1000 / 60) % 60);
       const seconds = Math.floor((diff / 1000) % 60);
+      
       setTimeLeft(`${hours}j ${minutes}m ${seconds}d`);
     };
 
-    calculateTime();
-    const timer = setInterval(calculateTime, 1000); // Detik untuk urgensi tinggi
+    const timer = setInterval(calculateTime, 1000);
+    calculateTime(); // Jalankan langsung tanpa tunggu interval pertama
+
     return () => clearInterval(timer);
   }, [product?.promoEnd, isPromoActive]);
 
-  const waUrl = useMemo(() => {
-    if (!product) return "";
-    const phoneNumber = "6282220947302"; 
-    const text = `*KONSULTASI PRODUK*\n` +
-                 `------------------\n` +
-                 `Item: ${product.name}\n` +
-                 `Harga Aktif: Rp ${product.price?.toLocaleString("id-ID")}\n` +
-                 `${isPromoActive ? `*Status: Sedang Promo ${product.discountPercent}%*\n` : ""}` +
-                 `------------------\n` +
-                 `Halo Admin, saya ingin menanyakan ketersediaan item ini.`; 
-    return `https://api.whatsapp.com/send?phone=${phoneNumber}&text=${encodeURIComponent(text)}`;
-  }, [product, isPromoActive]);
-
-  const handleTanyaAdmin = () => {
+  // 4. WhatsApp Integration Logic
+  const handleTanyaAdmin = useCallback(() => {
     if (!isAuthenticated) {
       alert("Otoritas Terbatas: Silakan masuk untuk berdiskusi dengan Admin.");
       navigate("/login", { state: { from: location } }); 
       return;
     }
-    window.open(waUrl, "_blank");
-  };
 
+    const phoneNumber = "6282220947302"; 
+    const text = `*KONSULTASI PRODUK*\n` +
+                 `------------------\n` +
+                 `Item: ${product?.name}\n` +
+                 `Harga Aktif: Rp ${product?.price?.toLocaleString("id-ID")}\n` +
+                 `${isPromoActive ? `*Status: Sedang Promo ${product?.discountPercent}%*\n` : ""}` +
+                 `------------------\n` +
+                 `Halo Admin, saya ingin menanyakan ketersediaan item ini.`; 
+    
+    window.open(`https://api.whatsapp.com/send?phone=${phoneNumber}&text=${encodeURIComponent(text)}`, "_blank");
+  }, [product, isPromoActive, isAuthenticated, navigate, location]);
+
+  // LOADING STATE
   if (isLocalLoading) return (
     <div className="h-screen flex flex-col items-center justify-center bg-white">
       <Loader2 className="animate-spin text-indigo-600 mb-6" size={50} />
-      <p className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-400">Synchronizing Product Specs...</p>
+      <p className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-400 animate-pulse">
+        Synchronizing Product Specs...
+      </p>
     </div>
   );
 
-  if (!product) return <div className="h-screen flex items-center justify-center font-black uppercase text-rose-500">Produk Tidak Ditemukan</div>;
+  // ERROR STATE
+  if (!product) return (
+    <div className="h-screen flex flex-col items-center justify-center gap-6">
+      <div className="text-sm font-black uppercase tracking-[0.5em] text-rose-500 border-4 border-rose-500 p-8 rotate-3">
+        Data Not Found
+      </div>
+      <Button onClick={() => navigate("/")} variant="link" className="font-black uppercase text-[10px] tracking-widest">
+        Kembali ke Basis Data
+      </Button>
+    </div>
+  );
 
   return (
     <div className="container mx-auto p-6 md:p-12 max-w-6xl animate-in fade-in slide-in-from-bottom-4 duration-1000 font-sans text-left">
       
-      {/* Header Navigasi */}
+      {/* HEADER NAVIGATION */}
       <div className="flex justify-between items-center mb-12">
-        <Button variant="ghost" onClick={() => navigate("/")} className="font-black text-[10px] tracking-widest gap-3 hover:bg-slate-50 rounded-2xl transition-all text-slate-400 hover:text-slate-900 group uppercase px-6">
+        <Button 
+          variant="ghost" 
+          onClick={() => navigate("/")} 
+          className="font-black text-[10px] tracking-widest gap-3 hover:bg-slate-50 rounded-2xl transition-all text-slate-400 hover:text-slate-900 group uppercase px-6"
+        >
           <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" /> 
           Kembali ke Katalog
         </Button>
@@ -126,13 +159,15 @@ export default function ProductDetail() {
         
         {/* MEDIA SECTION */}
         <div className="space-y-6">
-          <Card className="overflow-hidden border-none shadow-2xl rounded-[3.5rem] bg-slate-50 relative">
+          <Card className="overflow-hidden border-none shadow-2xl rounded-[3.5rem] bg-slate-50 relative group">
             <img 
               src={product.image} 
-              className={cn("w-full aspect-square object-cover hover:scale-110 transition-transform duration-1000", !product.isAvailable && "grayscale")} 
+              className={cn(
+                "w-full aspect-square object-cover transition-all duration-1000 group-hover:scale-105", 
+                !product.isAvailable && "grayscale"
+              )} 
               alt={product.name}
             />
-            {/* Promo Overlay di Gambar [cite: 2026-01-10] */}
             {isPromoActive && product.isAvailable && (
               <div className="absolute top-10 left-10">
                 <Badge className="bg-rose-600 text-white border-none px-6 py-2 rounded-2xl text-xs font-black shadow-2xl animate-bounce">
@@ -142,7 +177,9 @@ export default function ProductDetail() {
             )}
             {!product.isAvailable && (
                <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center">
-                  <span className="text-sm font-black uppercase tracking-[0.5em] text-white border-4 border-white p-6 rotate-12">Sold Out</span>
+                  <span className="text-sm font-black uppercase tracking-[0.5em] text-white border-4 border-white p-6 rotate-12">
+                    Sold Out
+                  </span>
                </div>
             )}
           </Card>
@@ -158,7 +195,10 @@ export default function ProductDetail() {
         <div className="flex flex-col">
           <div className="space-y-6 mb-12">
             <div className="flex items-center gap-3">
-              <Badge className={cn("px-4 py-1.5 rounded-full text-[8px] font-black tracking-widest uppercase border-none", isPromoActive ? "bg-rose-600 animate-pulse" : "bg-indigo-600")}>
+              <Badge className={cn(
+                "px-4 py-1.5 rounded-full text-[8px] font-black tracking-widest uppercase border-none", 
+                isPromoActive ? "bg-rose-600 animate-pulse" : "bg-indigo-600"
+              )}>
                 {isPromoActive ? "Strategic Deal" : "Official Product"}
               </Badge>
               <div className="h-[1px] flex-1 bg-slate-100"></div>
@@ -168,13 +208,12 @@ export default function ProductDetail() {
               {product.name}
             </h1>
 
-            {/* UPGRADED PRICE SECTION [cite: 2026-01-10] */}
             <div className="pt-6">
                 <div className="flex items-center gap-4 mb-2">
                   <p className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.4em]">Nilai Investasi</p>
                   {isPromoActive && (
                     <div className="flex items-center gap-2 bg-rose-50 px-3 py-1 rounded-lg border border-rose-100">
-                      <Clock size={12} className="text-rose-600 animate-spin-slow" />
+                      <Clock size={12} className="text-rose-600 animate-pulse" />
                       <span className="text-[10px] font-black text-rose-600 uppercase tracking-widest">{timeLeft}</span>
                     </div>
                   )}
@@ -199,12 +238,12 @@ export default function ProductDetail() {
             </div>
           </div>
 
-          <div className="bg-slate-50 p-8 rounded-[2.5rem] border border-slate-100 mb-12 relative group">
+          <div className="bg-slate-50 p-8 rounded-[2.5rem] border border-slate-100 mb-12 relative group hover:bg-slate-100/50 transition-colors">
               <div className="absolute -top-3 -left-3 bg-white p-2 rounded-xl border border-slate-100">
                   <Info size={16} className="text-indigo-600" />
               </div>
               <p className="text-base text-slate-600 leading-relaxed font-medium italic">
-                "{product.description || "Inisialisasi spesifikasi unit..."}"
+                "{product.description || "Inisialisasi spesifikasi unit belum tersedia dalam basis data..."}"
               </p>
           </div>
 
@@ -213,7 +252,7 @@ export default function ProductDetail() {
             <Button 
               onClick={() => addToCart(product)}
               disabled={!product.isAvailable}
-              className="h-24 flex-1 rounded-[2.5rem] bg-slate-900 hover:bg-indigo-600 text-white font-black uppercase tracking-widest gap-4 shadow-2xl transition-all active:scale-95 disabled:grayscale"
+              className="h-24 flex-1 rounded-[2.5rem] bg-slate-900 hover:bg-indigo-600 text-white font-black uppercase tracking-widest gap-4 shadow-2xl transition-all active:scale-95 disabled:grayscale disabled:cursor-not-allowed"
             >
               <ShoppingCart size={24} /> {isPromoActive ? "Amankan Promo" : "Tambah ke Keranjang"}
             </Button>
@@ -240,20 +279,23 @@ export default function ProductDetail() {
             <Sparkles className="text-amber-400 animate-pulse" size={24} fill="currentColor" />
         </div>
         
-        <ReviewSection product={product} onReviewSubmit={submitReview} />
+        <ReviewSection product={product} onReviewSubmit={(reviewData) => submitReview(product.id, reviewData)} />
       </div>
     </div>
   );
 }
 
+// Sub-component dengan optimasi props
 function SpecCard({ icon, label, value }) {
     return (
-        <div className="bg-white p-5 rounded-[2rem] border border-slate-100 flex flex-col items-center text-center gap-2 shadow-sm hover:shadow-indigo-100 transition-all">
-            <div className="text-indigo-600 p-2 bg-slate-50 rounded-xl">{icon}</div>
+        <div className="bg-white p-5 rounded-[2rem] border border-slate-100 flex flex-col items-center text-center gap-2 shadow-sm hover:shadow-indigo-100 transition-all group">
+            <div className="text-indigo-600 p-2 bg-slate-50 rounded-xl group-hover:scale-110 transition-transform">
+              {icon}
+            </div>
             <div className="space-y-0.5 overflow-hidden w-full">
                 <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{label}</p>
                 <p className="text-[10px] font-black text-slate-900 uppercase truncate">{value}</p>
             </div>
         </div>
-    )
+    );
 }

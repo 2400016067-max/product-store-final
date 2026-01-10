@@ -1,5 +1,14 @@
-import { createContext, useContext, useState, useEffect } from "react";
-import { auth, googleProvider, signInWithPopup } from "../lib/firebase";
+import { createContext, useContext, useState, useEffect, useCallback } from "react";
+// Import tambahan untuk manual auth dari firebase/auth
+import { 
+  auth, 
+  googleProvider, 
+  signInWithPopup 
+} from "../lib/firebase";
+import { 
+  createUserWithEmailAndPassword, 
+  signInWithEmailAndPassword 
+} from "firebase/auth";
 
 const AuthContext = createContext(null);
 
@@ -9,7 +18,17 @@ export const AuthProvider = ({ children }) => {
 
   const AUTH_API = "https://694615d7ed253f51719d04d2.mockapi.io/users";
 
-  // 1. CEK SESI (Mengenali User saat refresh tab)
+  // HELPER INTERNAL: Sinkronisasi State & Storage
+  const syncUser = (userData) => {
+    setUser(userData);
+    if (userData) {
+      sessionStorage.setItem("admin_user", JSON.stringify(userData));
+    } else {
+      sessionStorage.removeItem("admin_user");
+    }
+  };
+
+  // 1. CEK SESI AWAL (Auto-load saat refresh tab)
   useEffect(() => {
     const checkSession = () => {
       try {
@@ -24,7 +43,112 @@ export const AuthProvider = ({ children }) => {
     checkSession();
   }, []);
 
-  // 2. FUNGSI LOGIN GOOGLE
+  // 2. MONITORING OTORITAS OTOMATIS (Background Sync)
+  useEffect(() => {
+    const verifyAuthority = async () => {
+      if (!user?.id) return;
+      try {
+        const response = await fetch(`${AUTH_API}/${user.id}`);
+        if (response.ok) {
+          const latestData = await response.json();
+          if (latestData.role !== user.role) {
+            console.warn("Authority change detected!");
+            syncUser(latestData);
+          }
+        } else if (response.status === 404) {
+          logout();
+        }
+      } catch (e) {
+        console.error("Authority Check Error:", e);
+      }
+    };
+
+    let authInterval;
+    if (user) {
+      authInterval = setInterval(verifyAuthority, 40000);
+    }
+    return () => clearInterval(authInterval);
+  }, [user?.id, user?.role]); 
+
+  // 3. REFRESH DATA MANUAL
+  const refreshUserData = useCallback(async () => {
+    if (!user?.id) return;
+    try {
+      const response = await fetch(`${AUTH_API}/${user.id}`);
+      if (response.ok) {
+        const latestData = await response.json();
+        syncUser(latestData); 
+        return { success: true, data: latestData };
+      }
+    } catch (e) {
+      return { success: false };
+    }
+  }, [user?.id]);
+
+  // 4. FUNGSI REGISTER MANUAL (Firebase + MockAPI) [cite: 2026-01-10]
+  const registerManual = async (name, email, password) => {
+    try {
+      // Step A: Buat akun di Firebase Auth
+      const firebaseResult = await createUserWithEmailAndPassword(auth, email, password);
+      const firebaseUser = firebaseResult.user;
+
+      // Step B: Simpan profil lengkap di MockAPI
+      const newUser = {
+        username: email, // Email digunakan sebagai username/ID unik
+        password: "secured-by-firebase", // Password asli aman di Firebase
+        name: name,
+        role: "viewer", // Default role
+        orderStatus: "Belum Ada Pesanan",
+        personalNotes: [], 
+        adminMessage: "Akun berhasil dibuat secara manual.",
+        managerBroadcast: "",
+        orderProduct: "",
+        orderDate: new Date().toISOString()
+      };
+
+      const response = await fetch(AUTH_API, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newUser)
+      });
+
+      const foundUser = await response.json();
+      syncUser(foundUser);
+      return { success: true };
+    } catch (error) {
+      console.error("Registration Error:", error);
+      let msg = "Gagal membuat akun.";
+      if (error.code === "auth/email-already-in-use") msg = "Email sudah terdaftar!";
+      return { success: false, message: msg };
+    }
+  };
+
+  // 5. FUNGSI LOGIN MANUAL (Firebase + MockAPI) [cite: 2026-01-10]
+  const login = async (email, password) => {
+    try {
+      // Step A: Verifikasi kredensial ke Firebase
+      await signInWithEmailAndPassword(auth, email, password);
+
+      // Step B: Jika Firebase OK, ambil data profil dari MockAPI
+      const response = await fetch(AUTH_API);
+      const users = await response.json();
+      const foundUser = users.find(u => u.username === email);
+
+      if (foundUser) {
+        syncUser(foundUser);
+        return { success: true };
+      } else {
+        return { success: false, message: "Data profil tidak ditemukan di database." };
+      }
+    } catch (error) {
+      console.error("Login Error:", error);
+      let msg = "Email atau Password salah!";
+      if (error.code === "auth/user-not-found") msg = "Akun tidak ditemukan!";
+      return { success: false, message: msg };
+    }
+  };
+
+  // 6. FUNGSI LOGIN GOOGLE
   const loginWithGoogle = async () => {
     try {
       const result = await signInWithPopup(auth, googleProvider);
@@ -42,7 +166,7 @@ export const AuthProvider = ({ children }) => {
           orderStatus: "Belum Ada Pesanan",
           personalNotes: [], 
           adminMessage: "Selamat datang! Akun Anda diverifikasi via Google.",
-          managerBroadcast: "", // Inisialisasi field baru
+          managerBroadcast: "",
           orderProduct: "",
           orderDate: new Date().toISOString()
         };
@@ -53,32 +177,14 @@ export const AuthProvider = ({ children }) => {
         });
         foundUser = await createRes.json();
       }
-      setUser(foundUser);
-      sessionStorage.setItem("admin_user", JSON.stringify(foundUser));
+      syncUser(foundUser);
       return { success: true };
     } catch (error) {
       return { success: false, message: "Gagal masuk dengan Google." };
     }
   };
 
-  // 3. FUNGSI LOGIN MANUAL
-  const login = async (username, password) => {
-    try {
-      const response = await fetch(AUTH_API);
-      const users = await response.json();
-      const foundUser = users.find(u => u.username === username && u.password === password);
-      if (foundUser) {
-        setUser(foundUser); 
-        sessionStorage.setItem("admin_user", JSON.stringify(foundUser));
-        return { success: true };
-      }
-      return { success: false, message: "Username atau Password salah!" };
-    } catch (error) {
-      return { success: false, message: "Masalah koneksi ke server." };
-    }
-  };
-
-  // 4. UPDATE DATA PROFIL/USER (Universal)
+  // 7. UPDATE DATA PROFIL/USER
   const updateProfile = async (updates) => {
     if (!user) return { success: false, message: "Sesi berakhir." };
     try {
@@ -88,62 +194,36 @@ export const AuthProvider = ({ children }) => {
         body: JSON.stringify({ ...user, ...updates }),
       });
       const updatedData = await response.json();
-      setUser(updatedData);
-      sessionStorage.setItem("admin_user", JSON.stringify(updatedData));
+      syncUser(updatedData);
       return { success: true };
     } catch (error) {
       return { success: false, message: error.message };
     }
   };
 
-  // 5. UPDATE DATA PESANAN (Admin/Staff)
+  // 8. UPDATE DATA PESANAN (Admin)
   const updateUserOrder = async (userId, updateData) => {
     try {
       const res = await fetch(`${AUTH_API}/${userId}`);
       const targetData = await res.json();
-
       const response = await fetch(`${AUTH_API}/${userId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          ...targetData, 
-          ...updateData, 
-          orderDate: new Date().toISOString() 
-        }),
+        body: JSON.stringify({ ...targetData, ...updateData, orderDate: new Date().toISOString() }),
       });
       const data = await response.json();
-      if (user?.id === userId) {
-        setUser(data);
-        sessionStorage.setItem("admin_user", JSON.stringify(data));
-      }
-      return { success: true };
+      if (user?.id === userId) syncUser(data);
+      return { success: true, data };
     } catch (error) {
       return { success: false, message: error.message };
     }
   };
 
-  // 6. REFRESH DATA
-  const refreshUserData = async () => {
-    if (!user) return;
-    try {
-      const response = await fetch(`${AUTH_API}/${user.id}`);
-      const latestData = await response.json();
-      setUser(latestData);
-      sessionStorage.setItem("admin_user", JSON.stringify(latestData));
-    } catch (e) { console.error(e); }
-  };
-
-  // ==========================================
-  // FITUR BARU: BROADCAST & MESSAGING
-  // ==========================================
-
-  // A. BROADCAST MASSAL (Manager -> Seluruh User)
+  // 9. BROADCAST MASSAL
   const broadcastMessage = async (message) => {
     try {
       const res = await fetch(AUTH_API);
       const allUsers = await res.json();
-
-      // Transmisi Paralel: Mengirim PUT ke semua user sekaligus
       const updatePromises = allUsers.map(u => 
         fetch(`${AUTH_API}/${u.id}`, {
           method: "PUT",
@@ -151,24 +231,19 @@ export const AuthProvider = ({ children }) => {
           body: JSON.stringify({ ...u, managerBroadcast: message })
         })
       );
-
       await Promise.all(updatePromises);
-      
-      // Jika Manager juga termasuk dalam list, refresh state lokalnya
-      if (user) refreshUserData();
-      
+      await refreshUserData(); 
       return { success: true };
     } catch (e) {
       return { success: false, message: e.message };
     }
   };
 
-  // B. STICKY NOTES (Manager -> Personal Admin/Staff)
+  // 10. STICKY NOTES
   const sendStickyNote = async (targetUserId, content, color = "yellow") => {
     try {
       const res = await fetch(`${AUTH_API}/${targetUserId}`);
       const targetData = await res.json();
-
       const newNote = {
         id: Date.now().toString(),
         content,
@@ -176,14 +251,11 @@ export const AuthProvider = ({ children }) => {
         color,
         createdAt: new Date().toISOString()
       };
-
       const oldNotes = Array.isArray(targetData.personalNotes) ? targetData.personalNotes : [];
-      const updatedNotes = [...oldNotes, newNote];
-
       await fetch(`${AUTH_API}/${targetUserId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...targetData, personalNotes: updatedNotes })
+        body: JSON.stringify({ ...targetData, personalNotes: [...oldNotes, newNote] })
       });
       return { success: true };
     } catch (e) {
@@ -196,29 +268,22 @@ export const AuthProvider = ({ children }) => {
     try {
       const currentNotes = Array.isArray(user.personalNotes) ? user.personalNotes : [];
       const updatedNotes = currentNotes.filter(n => n.id !== noteId);
-      
-      const res = await fetch(`${AUTH_API}/${user.id}`, {
+      const response = await fetch(`${AUTH_API}/${user.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...user, personalNotes: updatedNotes })
       });
-
-      if (res.ok) {
-        const updatedUser = { ...user, personalNotes: updatedNotes };
-        setUser(updatedUser);
-        sessionStorage.setItem("admin_user", JSON.stringify(updatedUser));
-      }
+      if (response.ok) syncUser({ ...user, personalNotes: updatedNotes });
     } catch (e) { console.error(e); }
   };
 
-  // 7. LOGOUT
+  // 11. LOGOUT
   const logout = () => {
-    setUser(null);
-    sessionStorage.removeItem("admin_user");
+    syncUser(null);
   };
 
   const value = {
-    user, login, loginWithGoogle, logout, loading,
+    user, login, registerManual, loginWithGoogle, logout, loading,
     updateUserOrder, updateProfile, refreshUserData, 
     sendStickyNote, clearNote, broadcastMessage,
     isAuthenticated: !!user,

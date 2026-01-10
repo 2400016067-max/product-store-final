@@ -1,5 +1,12 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { 
+  getAuth, 
+  GoogleAuthProvider, 
+  signInWithPopup,
+  // Kita pastikan fungsi-fungsi ini tersedia jika dibutuhkan di tempat lain
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword 
+} from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDDvX7lgFRkm_-SKnsSmTrTyryZk_hS3ZI",
@@ -11,14 +18,25 @@ const firebaseConfig = {
   measurementId: "G-LPDYWL20N0"
 };
 
-// Initialize Firebase
+// 1. Initialize Firebase App
 const app = initializeApp(firebaseConfig);
 
-// Initialize Services
-export const auth = getAuth(app);
-export const googleProvider = new GoogleAuthProvider();
+// 2. Initialize Auth Service
+const auth = getAuth(app);
 
-// Tambahkan prompt agar user selalu bisa memilih akun Google mereka
+// 3. Configure Google Provider
+const googleProvider = new GoogleAuthProvider();
+// Memberikan pengalaman UX yang lebih baik agar user bisa memilih akun Google yang berbeda
 googleProvider.setCustomParameters({ prompt: "select_account" });
 
-export { signInWithPopup };
+// 4. Clean Exports
+// Pastikan 'auth' diekspor paling pertama karena ini adalah 'jantung' autentikasi kita
+export { 
+  auth, 
+  googleProvider, 
+  signInWithPopup,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword
+};
+
+export default app;
