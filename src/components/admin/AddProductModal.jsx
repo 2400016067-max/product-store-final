@@ -9,12 +9,8 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-<<<<<<< HEAD
 import { PlusCircle, Loader2 } from "lucide-react"; // Tambahkan Loader2
-=======
-
 import { PlusCircle, Loader2 } from "lucide-react"; 
->>>>>>> 3a63c18e971785355a3933578d1b5c90b243dad3
 import { CATEGORIES } from "@/lib/constants";
 
 export default function AddProductModal({ onAdd }) {
@@ -36,7 +32,7 @@ export default function AddProductModal({ onAdd }) {
     e.preventDefault();
     setIsSubmitting(true); // Mulai loading
     
-<<<<<<< HEAD
+
     const payload = {
       ...formData,
       price: Number(formData.price),
@@ -44,7 +40,7 @@ export default function AddProductModal({ onAdd }) {
     };
 
     try {
-=======
+
     
     if (!formData.name || !formData.price || !formData.category) {
       alert("Mohon lengkapi Nama, Kategori, dan Harga!");
@@ -62,7 +58,7 @@ export default function AddProductModal({ onAdd }) {
       };
 
       
->>>>>>> 3a63c18e971785355a3933578d1b5c90b243dad3
+
       const result = await onAdd(payload);
       
       if (result.success) {
@@ -76,16 +72,16 @@ export default function AddProductModal({ onAdd }) {
           isAvailable: true 
         });
       }
-<<<<<<< HEAD
+
     } finally {
       setIsSubmitting(false); // Selesai loading (berhasil atau gagal)
-=======
+
     } catch (error) {
       console.error("Error submit:", error);
     } finally {
       
       setIsLoading(false); 
->>>>>>> 3a63c18e971785355a3933578d1b5c90b243dad3
+
     }
   };
 
@@ -121,16 +117,16 @@ export default function AddProductModal({ onAdd }) {
               value={formData.name} 
               onChange={(e) => setFormData({...formData, name: e.target.value})} 
               required 
-<<<<<<< HEAD
+
               disabled={isSubmitting}
-=======
+
               disabled={isLoading}
->>>>>>> 3a63c18e971785355a3933578d1b5c90b243dad3
+
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-<<<<<<< HEAD
+
             {/* Kategori */}
             <div className="space-y-1">
               <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Kategori</label>
@@ -140,8 +136,7 @@ export default function AddProductModal({ onAdd }) {
                 onChange={(e) => setFormData({...formData, category: e.target.value})}
                 required
                 disabled={isSubmitting}
-=======
-            
+
             <div className="space-y-1">
               <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Kategori</label>
               <select
@@ -150,7 +145,7 @@ export default function AddProductModal({ onAdd }) {
                 onChange={(e) => setFormData({...formData, category: e.target.value})}
                 required
                 disabled={isLoading} 
->>>>>>> 3a63c18e971785355a3933578d1b5c90b243dad3
+
               >
                 <option value="" disabled>Pilih Kategori</option>
                 {CATEGORIES.map((cat) => (
@@ -170,11 +165,11 @@ export default function AddProductModal({ onAdd }) {
                 value={formData.price} 
                 onChange={(e) => setFormData({...formData, price: e.target.value})} 
                 required 
-<<<<<<< HEAD
+
                 disabled={isSubmitting}
-=======
+
                 disabled={isLoading}
->>>>>>> 3a63c18e971785355a3933578d1b5c90b243dad3
+
               />
             </div>
           </div>
@@ -183,17 +178,17 @@ export default function AddProductModal({ onAdd }) {
           <div className="space-y-1">
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Status Stok</label>
             <select
-<<<<<<< HEAD
+
               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50"
               value={formData.isAvailable}
               onChange={(e) => setFormData({...formData, isAvailable: e.target.value === "true"})}
               disabled={isSubmitting}
-=======
+
               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               value={formData.isAvailable}
               onChange={(e) => setFormData({...formData, isAvailable: e.target.value === "true"})}
               disabled={isLoading} 
->>>>>>> 3a63c18e971785355a3933578d1b5c90b243dad3
+
             >
               <option value="true">✅ Tersedia (Ready Stock)</option>
               <option value="false">❌ Habis (Out of Stock)</option>
@@ -208,11 +203,11 @@ export default function AddProductModal({ onAdd }) {
               value={formData.image} 
               onChange={(e) => setFormData({...formData, image: e.target.value})} 
               required 
-<<<<<<< HEAD
+
               disabled={isSubmitting}
-=======
+
               disabled={isLoading} 
->>>>>>> 3a63c18e971785355a3933578d1b5c90b243dad3
+
             />
           </div>
 
@@ -223,7 +218,7 @@ export default function AddProductModal({ onAdd }) {
               placeholder="Jelaskan fitur utama produk..." 
               value={formData.description} 
               onChange={(e) => setFormData({...formData, description: e.target.value})} 
-<<<<<<< HEAD
+
               disabled={isSubmitting}
             />
           </div>
@@ -236,7 +231,7 @@ export default function AddProductModal({ onAdd }) {
             {isSubmitting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-=======
+
               disabled={isLoading}
             />
           </div>
@@ -250,7 +245,7 @@ export default function AddProductModal({ onAdd }) {
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" /> {/* Ikon Muter */}
->>>>>>> 3a63c18e971785355a3933578d1b5c90b243dad3
+
                 MENYIMPAN...
               </>
             ) : (
