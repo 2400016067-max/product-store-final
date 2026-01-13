@@ -49,7 +49,7 @@ export default function ManagerLayout() {
         <div className="flex items-center gap-3 mb-2">
           <div className="h-3 w-3 bg-indigo-500 rounded-full animate-pulse shadow-[0_0_12px_rgba(99,102,241,0.8)]"></div>
           <h2 className="text-xl font-black tracking-tighter uppercase leading-none italic">
-            Tech<span className="text-indigo-400">Suite</span>
+            Product<span className="text-indigo-400">Store</span>
           </h2>
         </div>
         <p className="text-[8px] text-indigo-300 font-black tracking-[0.4em] uppercase opacity-70">Executive Command Center</p>

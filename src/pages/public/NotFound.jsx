@@ -37,7 +37,7 @@ export default function NotFound() {
       </div>
       
       <p className="mt-20 text-[9px] font-black text-slate-300 uppercase tracking-[0.4em]">
-        TechStore Intelligence Systems v1.1
+        ProductStore Intelligence Systems v1.1
       </p>
     </div>
   );
