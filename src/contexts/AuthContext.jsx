@@ -32,7 +32,6 @@ export const AuthProvider = ({ children }) => {
   // ============================================================
   const syncUser = (userData) => {
     if (userData) {
-      // KRITIS: Mengubah array [] dari MockAPI menjadi Object standar secara otomatis
       if (Array.isArray(userData.personalPromo) || !userData.personalPromo) {
         userData.personalPromo = { ...defaultPromo };
       }
@@ -73,21 +72,26 @@ export const AuthProvider = ({ children }) => {
           const latestData = await response.json();
           let needsDatabaseUpdate = false;
 
-          // STEP A: Proteksi Tipe Data (Repair [] to {})
           if (Array.isArray(latestData.personalPromo) || !latestData.personalPromo) {
             latestData.personalPromo = { ...defaultPromo };
             needsDatabaseUpdate = true;
           }
 
           let updatedPromo = { ...latestData.personalPromo };
+          let updatedBroadcast = latestData.managerBroadcast || ""; // Ambil broadcast saat ini
 
-          // STEP B: Logika Real-time Expiry (Auto-Cleanup) [cite: 2026-01-10]
+          // STEP B: Logika Real-time Expiry & Auto-Cleanup [cite: 2026-01-10]
           if (updatedPromo.isActive && updatedPromo.validUntil) {
             const now = new Date();
             const expiryDate = new Date(updatedPromo.validUntil);
+            
             if (now > expiryDate) {
-              console.warn("🚨 Promo kadaluarsa terdeteksi pada user:", user.name);
+              console.warn("🚨 Promo kadaluarsa! Membersihkan sistem...");
               updatedPromo.isActive = false;
+              
+              // FITUR BARU: Kosongkan pesan siaran otomatis saat promo habis [cite: 2026-01-10]
+              updatedBroadcast = ""; 
+              
               needsDatabaseUpdate = true;
             }
           }
@@ -96,13 +100,17 @@ export const AuthProvider = ({ children }) => {
             latestData.role !== user.role || 
             JSON.stringify(latestData.personalPromo) !== JSON.stringify(user.personalPromo) ||
             latestData.referralCode !== user.referralCode ||
-            latestData.managerBroadcast !== user.managerBroadcast;
+            latestData.managerBroadcast !== updatedBroadcast;
 
           if (needsDatabaseUpdate) {
             const updateRes = await fetch(`${AUTH_API}/${user.id}`, {
               method: "PUT",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ ...latestData, personalPromo: updatedPromo }),
+              body: JSON.stringify({ 
+                ...latestData, 
+                personalPromo: updatedPromo,
+                managerBroadcast: updatedBroadcast // Terapkan penghapusan siaran ke DB
+              }),
             });
             const cleanedData = await updateRes.json();
             syncUser(cleanedData); 
@@ -143,7 +151,7 @@ export const AuthProvider = ({ children }) => {
   // 4. FUNGSI REGISTER MANUAL
   const registerManual = async (name, email, password) => {
     try {
-      const firebaseResult = await createUserWithEmailAndPassword(auth, email, password);
+      await createUserWithEmailAndPassword(auth, email, password);
       const newUser = {
         username: email,
         password: "secured-by-firebase",
@@ -344,9 +352,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // ============================================================
-  // 12. FITUR BARU: REDEEM PROMO (HANYA SEKALI PAKAI) [cite: 2026-01-10]
-  // ============================================================
+  // 12. REDEEM PROMO (HANYA SEKALI PAKAI)
   const redeemPersonalPromo = async () => {
     if (!user?.id || !user?.personalPromo?.isActive) return { success: false };
     try {
@@ -357,7 +363,7 @@ export const AuthProvider = ({ children }) => {
           ...user, 
           personalPromo: { 
             ...user.personalPromo, 
-            isActive: false // Hanguskan promo setelah dipakai sekali
+            isActive: false 
           } 
         }),
       });
@@ -371,9 +377,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // ============================================================
-  // 13. FITUR BARU: DELETE PERSONAL PROMO (MANUAL RESET) [cite: 2026-01-10]
-  // ============================================================
+  // 13. DELETE PERSONAL PROMO (MANUAL RESET)
   const deletePersonalPromo = async (targetUserId) => {
     try {
       const res = await fetch(`${AUTH_API}/${targetUserId}`);
@@ -385,13 +389,12 @@ export const AuthProvider = ({ children }) => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
           ...targetData, 
-          personalPromo: { ...defaultPromo } // Reset ke struktur kosong
+          personalPromo: { ...defaultPromo } 
         }),
       });
 
       if (response.ok) {
         const updatedData = await response.json();
-        // Sinkronkan state jika Admin/Manager menghapus promo miliknya sendiri
         if (user?.id === targetUserId) syncUser(updatedData);
         return { success: true };
       }
@@ -412,7 +415,7 @@ export const AuthProvider = ({ children }) => {
     sendStickyNote, clearNote, broadcastMessage,
     sendPersonalPromo,
     redeemPersonalPromo,
-    deletePersonalPromo, // Ekspos fungsi ke Dashboard Manager
+    deletePersonalPromo, 
     isAuthenticated: !!user,
     isAdmin: user?.role?.toLowerCase() === "admin",
     isStaff: user?.role?.toLowerCase() === "staff",
