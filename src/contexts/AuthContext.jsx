@@ -1,14 +1,13 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
-// Import tambahan untuk bypass COOP
+// Import tambahan untuk manual auth dari firebase/auth
 import { 
   auth, 
-  googleProvider 
+  googleProvider, 
+  signInWithPopup 
 } from "../lib/firebase";
 import { 
   createUserWithEmailAndPassword, 
-  signInWithEmailAndPassword,
-  signInWithRedirect, // Solusi COOP: Ganti Popup ke Redirect [cite: 2026-01-13]
-  getRedirectResult    // Menangkap hasil setelah kembali dari Google
+  signInWithEmailAndPassword 
 } from "firebase/auth";
 
 const AuthContext = createContext(null);
@@ -19,6 +18,7 @@ export const AuthProvider = ({ children }) => {
 
   const AUTH_API = "https://694615d7ed253f51719d04d2.mockapi.io/users";
 
+  // DEFAULT STRUCTURE: Standarisasi data promo agar tidak crash [cite: 2026-01-10]
   const defaultPromo = { 
     isActive: false, 
     code: "", 
@@ -27,12 +27,15 @@ export const AuthProvider = ({ children }) => {
     validUntil: "" 
   };
 
-  // HELPER INTERNAL: Sinkronisasi State & Storage
+  // ============================================================
+  // HELPER INTERNAL: Sinkronisasi State & Storage (ANTI-CRASH)
+  // ============================================================
   const syncUser = (userData) => {
     if (userData) {
       if (Array.isArray(userData.personalPromo) || !userData.personalPromo) {
         userData.personalPromo = { ...defaultPromo };
       }
+      
       setUser(userData);
       sessionStorage.setItem("admin_user", JSON.stringify(userData));
     } else {
@@ -41,71 +44,25 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // ============================================================
-  // BUG FIX 1: MENANGKAP HASIL REDIRECT (Fix Login Macet) [cite: 2026-01-13]
-  // ============================================================
-  useEffect(() => {
-    const handleRedirect = async () => {
-      try {
-        const result = await getRedirectResult(auth);
-        if (result) {
-          const googleUser = result.user;
-          const response = await fetch(AUTH_API);
-          const users = await response.json();
-          let foundUser = users.find(u => u.username === googleUser.email);
-
-          if (!foundUser) {
-            const newUser = {
-              username: googleUser.email,
-              password: "google-auth-user",
-              name: googleUser.displayName,
-              role: "viewer",
-              orderStatus: "Belum Ada Pesanan",
-              personalNotes: [], 
-              adminMessage: "Selamat datang! Akun Anda diverifikasi via Google.",
-              managerBroadcast: "",
-              orderProduct: "",
-              orderDate: new Date().toISOString(),
-              referralCode: "",
-              personalPromo: { ...defaultPromo }
-            };
-            const createRes = await fetch(AUTH_API, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(newUser)
-            });
-            foundUser = await createRes.json();
-          }
-          syncUser(foundUser);
-        }
-      } catch (error) {
-        console.error("Redirect Error:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    handleRedirect();
-  }, []);
-
-  // 1. CEK SESI AWAL
+  // 1. CEK SESI AWAL (Auto-load saat refresh tab)
   useEffect(() => {
     const checkSession = () => {
       try {
         const savedUser = sessionStorage.getItem("admin_user");
         if (savedUser) {
-          syncUser(JSON.parse(savedUser)); 
+          const parsedUser = JSON.parse(savedUser);
+          syncUser(parsedUser); 
         }
       } catch (error) {
         sessionStorage.removeItem("admin_user");
       } finally {
-        // Jika tidak ada hash redirect, matikan loading di sini
-        if (!window.location.hash.includes("id_token")) setLoading(false);
+        setLoading(false);
       }
     };
     checkSession();
   }, []);
 
-  // 2. MONITORING OTORITAS & AUTO-CLEANUP SIARAN (Background Sync)
+  // 2. MONITORING OTORITAS & AUTO-CLEANUP PROMO (Background Sync)
   useEffect(() => {
     const verifyAuthorityAndPromo = async () => {
       if (!user?.id) return;
@@ -121,17 +78,20 @@ export const AuthProvider = ({ children }) => {
           }
 
           let updatedPromo = { ...latestData.personalPromo };
-          let updatedBroadcast = latestData.managerBroadcast || "";
+          let updatedBroadcast = latestData.managerBroadcast || ""; // Ambil broadcast saat ini
 
-          // LOGIKA AUTO-CLEANUP: Jika promo habis, broadcast dikosongkan [cite: 2026-01-10]
+          // STEP B: Logika Real-time Expiry & Auto-Cleanup [cite: 2026-01-10]
           if (updatedPromo.isActive && updatedPromo.validUntil) {
             const now = new Date();
             const expiryDate = new Date(updatedPromo.validUntil);
             
             if (now > expiryDate) {
-              console.warn("🚨 Promo Expired: Membersihkan sistem...");
+              console.warn("🚨 Promo kadaluarsa! Membersihkan sistem...");
               updatedPromo.isActive = false;
-              updatedBroadcast = ""; // Kosongkan pesan siaran [cite: 2026-01-10]
+              
+              // FITUR BARU: Kosongkan pesan siaran otomatis saat promo habis [cite: 2026-01-10]
+              updatedBroadcast = ""; 
+              
               needsDatabaseUpdate = true;
             }
           }
@@ -139,6 +99,7 @@ export const AuthProvider = ({ children }) => {
           const isDataChanged = 
             latestData.role !== user.role || 
             JSON.stringify(latestData.personalPromo) !== JSON.stringify(user.personalPromo) ||
+            latestData.referralCode !== user.referralCode ||
             latestData.managerBroadcast !== updatedBroadcast;
 
           if (needsDatabaseUpdate) {
@@ -148,7 +109,7 @@ export const AuthProvider = ({ children }) => {
               body: JSON.stringify({ 
                 ...latestData, 
                 personalPromo: updatedPromo,
-                managerBroadcast: updatedBroadcast 
+                managerBroadcast: updatedBroadcast // Terapkan penghapusan siaran ke DB
               }),
             });
             const cleanedData = await updateRes.json();
@@ -159,7 +120,9 @@ export const AuthProvider = ({ children }) => {
         } else if (response.status === 404) {
           logout();
         }
-      } catch (e) { console.error(e); }
+      } catch (e) {
+        console.error("Authority Check Error:", e);
+      }
     };
 
     let authInterval;
@@ -180,10 +143,12 @@ export const AuthProvider = ({ children }) => {
         syncUser(latestData); 
         return { success: true, data: latestData };
       }
-    } catch (e) { return { success: false }; }
+    } catch (e) {
+      return { success: false };
+    }
   }, [user?.id]);
 
-  // 4. REGISTER MANUAL
+  // 4. FUNGSI REGISTER MANUAL
   const registerManual = async (name, email, password) => {
     try {
       await createUserWithEmailAndPassword(auth, email, password);
@@ -194,25 +159,29 @@ export const AuthProvider = ({ children }) => {
         role: "viewer",
         orderStatus: "Belum Ada Pesanan",
         personalNotes: [], 
-        adminMessage: "Akun berhasil dibuat.",
+        adminMessage: "Akun berhasil dibuat secara manual.",
         managerBroadcast: "",
         orderProduct: "",
         orderDate: new Date().toISOString(),
         referralCode: "",
         personalPromo: { ...defaultPromo } 
       };
+
       const response = await fetch(AUTH_API, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newUser)
       });
+
       const foundUser = await response.json();
       syncUser(foundUser);
       return { success: true };
-    } catch (error) { return { success: false, message: error.message }; }
+    } catch (error) {
+      return { success: false, message: "Gagal membuat akun." };
+    }
   };
 
-  // 5. LOGIN MANUAL
+  // 5. FUNGSI LOGIN MANUAL
   const login = async (email, password) => {
     try {
       await signInWithEmailAndPassword(auth, email, password);
@@ -223,20 +192,46 @@ export const AuthProvider = ({ children }) => {
         syncUser(foundUser);
         return { success: true };
       }
-      return { success: false, message: "User tidak ditemukan." };
-    } catch (error) { return { success: false, message: error.message }; }
+      return { success: false, message: "Data profil tidak ditemukan." };
+    } catch (error) {
+      return { success: false, message: "Login gagal." };
+    }
   };
 
-  // ============================================================
-  // BUG FIX 2: LOGIN GOOGLE (Ganti ke Redirect) [cite: 2026-01-13]
-  // ============================================================
+  // 6. FUNGSI LOGIN GOOGLE
   const loginWithGoogle = async () => {
     try {
-      // Bypass COOP Policy dengan Redirect [cite: 2026-01-13]
-      await signInWithRedirect(auth, googleProvider);
-      return { success: true }; 
+      const result = await signInWithPopup(auth, googleProvider);
+      const googleUser = result.user;
+      const response = await fetch(AUTH_API);
+      const users = await response.json();
+      let foundUser = users.find(u => u.username === googleUser.email);
+
+      if (!foundUser) {
+        const newUser = {
+          username: googleUser.email,
+          password: "google-auth-user",
+          name: googleUser.displayName,
+          role: "viewer",
+          orderStatus: "Belum Ada Pesanan",
+          personalNotes: [], 
+          adminMessage: "Selamat datang! Akun Anda diverifikasi via Google.",
+          managerBroadcast: "",
+          orderProduct: "",
+          orderDate: new Date().toISOString(),
+          referralCode: "",
+          personalPromo: { ...defaultPromo }
+        };
+        const createRes = await fetch(AUTH_API, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(newUser)
+        });
+        foundUser = await createRes.json();
+      }
+      syncUser(foundUser);
+      return { success: true };
     } catch (error) {
-      console.error("Auth Error:", error);
       return { success: false };
     }
   };
@@ -253,7 +248,9 @@ export const AuthProvider = ({ children }) => {
       const updatedData = await response.json();
       syncUser(updatedData);
       return { success: true };
-    } catch (error) { return { success: false }; }
+    } catch (error) {
+      return { success: false };
+    }
   };
 
   // 8. UPDATE DATA PESANAN
@@ -269,7 +266,9 @@ export const AuthProvider = ({ children }) => {
       const data = await response.json();
       if (user?.id === userId) syncUser(data);
       return { success: true, data };
-    } catch (error) { return { success: false }; }
+    } catch (error) {
+      return { success: false };
+    }
   };
 
   // 9. BROADCAST MASSAL
@@ -287,7 +286,9 @@ export const AuthProvider = ({ children }) => {
       await Promise.all(updatePromises);
       await refreshUserData(); 
       return { success: true };
-    } catch (e) { return { success: false }; }
+    } catch (e) {
+      return { success: false };
+    }
   };
 
   // 10. STICKY NOTES
@@ -309,7 +310,9 @@ export const AuthProvider = ({ children }) => {
         body: JSON.stringify({ ...targetData, personalNotes: [...oldNotes, newNote] })
       });
       return { success: true };
-    } catch (e) { return { success: false }; }
+    } catch (e) {
+      return { success: false };
+    }
   };
 
   const clearNote = async (noteId) => {
@@ -344,10 +347,12 @@ export const AuthProvider = ({ children }) => {
         if (user?.id === targetUserId) syncUser(data);
         return { success: true };
       }
-    } catch (e) { return { success: false }; }
+    } catch (e) {
+      return { success: false };
+    }
   };
 
-  // 12. REDEEM PROMO
+  // 12. REDEEM PROMO (HANYA SEKALI PAKAI)
   const redeemPersonalPromo = async () => {
     if (!user?.id || !user?.personalPromo?.isActive) return { success: false };
     try {
@@ -356,7 +361,10 @@ export const AuthProvider = ({ children }) => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
           ...user, 
-          personalPromo: { ...user.personalPromo, isActive: false } 
+          personalPromo: { 
+            ...user.personalPromo, 
+            isActive: false 
+          } 
         }),
       });
       if (response.ok) {
@@ -364,14 +372,18 @@ export const AuthProvider = ({ children }) => {
         syncUser(updatedData); 
         return { success: true };
       }
-    } catch (e) { return { success: false }; }
+    } catch (e) {
+      return { success: false };
+    }
   };
 
-  // 13. DELETE PERSONAL PROMO
+  // 13. DELETE PERSONAL PROMO (MANUAL RESET)
   const deletePersonalPromo = async (targetUserId) => {
     try {
       const res = await fetch(`${AUTH_API}/${targetUserId}`);
+      if (!res.ok) throw new Error("User tidak ditemukan");
       const targetData = await res.json();
+
       const response = await fetch(`${AUTH_API}/${targetUserId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -380,22 +392,30 @@ export const AuthProvider = ({ children }) => {
           personalPromo: { ...defaultPromo } 
         }),
       });
+
       if (response.ok) {
         const updatedData = await response.json();
         if (user?.id === targetUserId) syncUser(updatedData);
         return { success: true };
       }
-    } catch (e) { return { success: false }; }
+      return { success: false };
+    } catch (e) {
+      return { success: false, message: e.message };
+    }
   };
 
   // 14. LOGOUT
-  const logout = () => { syncUser(null); };
+  const logout = () => {
+    syncUser(null);
+  };
 
   const value = {
     user, login, registerManual, loginWithGoogle, logout, loading,
     updateUserOrder, updateProfile, refreshUserData, 
     sendStickyNote, clearNote, broadcastMessage,
-    sendPersonalPromo, redeemPersonalPromo, deletePersonalPromo,
+    sendPersonalPromo,
+    redeemPersonalPromo,
+    deletePersonalPromo, 
     isAuthenticated: !!user,
     isAdmin: user?.role?.toLowerCase() === "admin",
     isStaff: user?.role?.toLowerCase() === "staff",
